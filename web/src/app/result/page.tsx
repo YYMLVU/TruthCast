@@ -4,6 +4,14 @@ import { useState } from 'react';
 import { ProgressTimeline } from '@/components/layout';
 import { RiskOverview, ClaimList, EvidenceChain, ReportCard, ExportButton } from '@/components/features';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { usePipelineStore } from '@/stores/pipeline-store';
 import type { Phase } from '@/types';
 import { CheckCircle2 } from 'lucide-react';
@@ -12,6 +20,7 @@ export default function ResultPage() {
   const [showFullInput, setShowFullInput] = useState(false);
   const {
     text,
+    images,
     detectData,
     claims,
     rawEvidences,
@@ -26,6 +35,7 @@ export default function ResultPage() {
 
   const hasReport = report !== null;
   const hasInputText = text.trim().length > 0;
+  const hasInputImages = images.length > 0;
   const shouldClampInput = text.length > 800;
   const inputPreview = showFullInput || !shouldClampInput ? text : `${text.slice(0, 800)}...`;
   const allDone =
@@ -105,6 +115,54 @@ export default function ResultPage() {
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">当前无可展示的输入新闻</div>
+            )}
+
+            {hasInputImages && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-foreground">输入图片（{images.length} 张）</div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {images.map((image, idx) => {
+                    const src = image.base64
+                      ? `data:${image.mime_type || 'image/jpeg'};base64,${image.base64}`
+                      : image.url || '';
+                    if (!src) return null;
+
+                    return (
+                      <Dialog key={`${idx}-${image.mime_type || 'img'}`}>
+                        <DialogTrigger asChild>
+                          <button
+                            type="button"
+                            className="group relative overflow-hidden rounded-md border bg-muted text-left"
+                            aria-label={`查看输入图片${idx + 1}`}
+                          >
+                            <div className="flex w-full items-center justify-center bg-muted">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={src}
+                                alt={`输入图片${idx + 1}`}
+                                className="h-auto w-full object-contain"
+                              />
+                            </div>
+                            <span className="absolute left-1 top-1 rounded bg-background/85 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                              图{idx + 1}
+                            </span>
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl">
+                          <DialogHeader>
+                            <DialogTitle>{`输入图片 ${idx + 1}`}</DialogTitle>
+                            <DialogDescription>该图片来自本次检测输入</DialogDescription>
+                          </DialogHeader>
+                          <div className="max-h-[70vh] overflow-auto rounded border bg-muted p-2">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={src} alt={`输入图片${idx + 1}大图`} className="h-auto w-full object-contain" />
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </div>
         </div>

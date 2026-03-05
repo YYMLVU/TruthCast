@@ -7,6 +7,7 @@ import type {
   ContentDraft,
   DetectResponse,
   EvidenceItem,
+  ImageInput,
   Phase,
   PhaseState,
   PhaseStatus,
@@ -71,6 +72,22 @@ export async function detect(text: string): Promise<DetectResponse> {
 
 export async function detectWithSignal(text: string, signal?: AbortSignal): Promise<DetectResponse> {
   const { data } = await api.post<DetectResponse>('/detect', { text }, { signal });
+  return data;
+}
+
+export async function detectMultimodalWithSignal(
+  text: string,
+  images: ImageInput[],
+  signal?: AbortSignal
+): Promise<DetectResponse> {
+  const { data } = await api.post<DetectResponse>(
+    '/detect/multimodal',
+    {
+      text,
+      images,
+    },
+    { signal }
+  );
   return data;
 }
 

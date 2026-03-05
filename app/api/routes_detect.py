@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from fastapi import APIRouter
 
@@ -16,12 +17,13 @@ from app.schemas.detect import (
     EvidenceRequest,
     EvidenceResponse,
     ReportRequest,
-    ReportResponse,
     StrategyConfig,
     UrlDetectRequest,
     UrlDetectResponse,
 )
+from app.schemas.ingest import MultimodalDetectRequest, MultimodalDetectResponse
 from app.services.history_store import save_report
+from app.services.ingestion import ingest_multimodal
 from app.services.pipeline import align_evidences
 from app.services.risk_snapshot import detect_risk_snapshot
 from app.services.news_crawler import crawl_news_url
@@ -31,13 +33,16 @@ logger = get_logger("truthcast.routes_detect")
 
 _DEFAULT_MAX_CHARS = 8000
 
+
+def _load_max_input_chars() -> int:
+    try:
+        return int(os.getenv("TRUTHCAST_MAX_INPUT_CHARS", _DEFAULT_MAX_CHARS))
+    except (ValueError, TypeError):
+        return _DEFAULT_MAX_CHARS
+
+
 # 在模块加载时读取一次，避免每个请求重复调用 os.getenv
-try:
-    _MAX_INPUT_CHARS: int = int(
-        os.getenv("TRUTHCAST_MAX_INPUT_CHARS", _DEFAULT_MAX_CHARS)
-    )
-except (ValueError, TypeError):
-    _MAX_INPUT_CHARS = _DEFAULT_MAX_CHARS
+_MAX_INPUT_CHARS: int = _load_max_input_chars()
 
 
 def _truncate_text(text: str) -> tuple[str, bool]:
@@ -71,6 +76,41 @@ def detect_fake_news(payload: DetectRequest) -> DetectResponse:
     )
     detect_cache.set(text, resp)
     return resp
+
+
+@router.post("/multimodal", response_model=MultimodalDetectResponse)
+def detect_multimodal_news(
+    payload: MultimodalDetectRequest,
+) -> MultimodalDetectResponse:
+    enriched_text, media_meta = ingest_multimodal(payload)
+    if not enriched_text.strip() or enriched_text == "[无有效输入内容]":
+        return MultimodalDetectResponse(
+            label="needs_context",
+            confidence=0.0,
+            score=50,
+            reasons=["输入内容为空或解析失败，无法完成风险快照"],
+            strategy=StrategyConfig(),
+            truncated=False,
+            media_meta=media_meta,
+        )
+
+    text, truncated = _truncate_text(enriched_text)
+    with llm_slot():
+        result = detect_risk_snapshot(text, force=payload.force, enable_news_gate=True)
+    reasons = list(result.reasons)
+    for analysis in media_meta.image_analyses:
+        for signal in analysis.suspicious_signals:
+            reasons.append(f"图片{analysis.image_index + 1}可疑信号：{signal}")
+
+    return MultimodalDetectResponse(
+        label=result.label,
+        confidence=result.confidence,
+        score=result.score,
+        reasons=reasons,
+        strategy=result.strategy,
+        truncated=truncated,
+        media_meta=media_meta,
+    )
 
 
 @router.post("/claims", response_model=ClaimsResponse)
@@ -126,13 +166,13 @@ def align_evidence(payload: EvidenceAlignRequest) -> EvidenceAlignResponse:
 
 
 @router.post("/report")
-def detect_report(payload: ReportRequest) -> dict:
+def detect_report(payload: ReportRequest) -> dict[str, Any]:
     text = payload.text
     if text:
         text, _ = _truncate_text(text)
 
     with llm_slot():
-        report = orchestrator.run_report(
+        report: dict[str, Any] = orchestrator.run_report(
             text=text,
             claims=payload.claims,
             evidences=payload.evidences,
@@ -175,6 +215,7 @@ def detect_url(payload: UrlDetectRequest) -> UrlDetectResponse:
             title="",
             content="",
             publish_date="",
+            image_urls=[],
             success=False,
             error_msg=crawled.error_msg,
         )
@@ -197,6 +238,7 @@ def detect_url(payload: UrlDetectRequest) -> UrlDetectResponse:
         title=crawled.title,
         content=crawled.content,
         publish_date=crawled.publish_date,
+        image_urls=crawled.image_urls,
         risk=risk_resp,
         success=True,
     )

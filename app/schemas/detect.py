@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -57,6 +59,7 @@ class UrlDetectResponse(BaseModel):
     title: str
     content: str
     publish_date: str
+    image_urls: list[str] = Field(default_factory=list)
     risk: DetectResponse | None = None
     success: bool = True
     error_msg: str = ""
@@ -324,7 +327,7 @@ class ContentGenerateResponse(BaseModel):
 
     # 元数据
     generated_at: str = Field(description="生成时间")
-    based_on: dict = Field(description="生成依据摘要")
+    based_on: dict[str, Any] = Field(description="生成依据摘要")
 
 
 class ContentDraftData(BaseModel):
@@ -332,9 +335,9 @@ class ContentDraftData(BaseModel):
 
     clarification: ClarificationContent | None = None
     # 澄清稿多风格/多版本列表（前端增量生成时写入）
-    clarifications: list[dict] | None = None
+    clarifications: list[dict[str, Any]] | None = None
     primary_clarification_id: str | None = None
     faq: list[FAQItem] | None = None
     platform_scripts: list[PlatformScript] | None = None
     generated_at: str | None = None
-    based_on: dict | None = None
+    based_on: dict[str, Any] | None = None

@@ -21,6 +21,32 @@ export type DetectResponse = {
   reasons: string[];
   strategy?: StrategyConfig | null;
   truncated?: boolean;
+  media_meta?: MediaMeta | null;
+};
+
+export type ImageInput = {
+  url?: string;
+  base64?: string;
+  mime_type?: string;
+};
+
+export type ImageAnalysisResult = {
+  image_index: number;
+  ocr_text: string;
+  scene_description: string;
+  key_entities: string[];
+  suspicious_signals: string[];
+  source_platform: string;
+};
+
+export type MediaMeta = {
+  input_modalities: string[];
+  image_count: number;
+  image_analyses: ImageAnalysisResult[];
+  source_url?: string | null;
+  source_title?: string | null;
+  source_publish_date?: string | null;
+  fusion_text: string;
 };
 
 export type UrlDetectRequest = {
@@ -32,6 +58,7 @@ export type UrlDetectResponse = {
   title: string;
   content: string;
   publish_date: string;
+  image_urls?: string[];
   risk: DetectResponse | null;
   success: boolean;
   error_msg?: string;

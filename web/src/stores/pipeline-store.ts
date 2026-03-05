@@ -5,6 +5,7 @@ import type {
   ContentDraft,
   DetectResponse,
   EvidenceItem,
+  ImageInput,
   Phase,
   PhaseStatus,
   PhaseState,
@@ -17,6 +18,7 @@ import {
   alignEvidence,
   alignEvidenceWithSignal,
   detect,
+  detectMultimodalWithSignal,
   detectWithSignal,
   detectClaims,
   detectClaimsWithSignal,
@@ -37,6 +39,7 @@ interface PipelineState {
   restorableTaskId: string | null;
   restorableUpdatedAt: string | null;
   text: string;
+  images: ImageInput[];
   error: string | null;
   detectData: DetectResponse | null;
   strategy: StrategyConfig | null;
@@ -63,6 +66,7 @@ interface PipelineState {
   probeLatestRestorable: () => Promise<void>;
   
   setText: (text: string) => void;
+  setImages: (images: ImageInput[]) => void;
   setPhase: (phase: Phase, status: PhaseStatus) => void;
   setError: (error: string | null) => void;
   setContent: (content: ContentDraft | null) => void;
@@ -95,6 +99,7 @@ const initialState = {
   restorableTaskId: null as string | null,
   restorableUpdatedAt: null as string | null,
   text: '网传某事件"100%真实且必须立刻转发"，消息来源为内部人士，请快速核查其真实性风险。',
+  images: [] as ImageInput[],
   error: null,
   detectData: null as DetectResponse | null,
   strategy: null as StrategyConfig | null,
@@ -206,6 +211,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     set({
       taskId,
       text: '',
+      images: [],
       error: null,
       detectData: null,
       strategy: null,
@@ -292,6 +298,8 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   },
 
   setText: (text) => set({ text }),
+
+  setImages: (images) => set({ images }),
   
   setPhase: (phase, status) =>
     set((state) => ({
@@ -416,7 +424,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   },
 
   runPipeline: async (opts) => {
-    const { text, setPhase, setError } = get();
+    const { text, images, setPhase, setError } = get();
 
     // 每次启动分析都生成新的 AbortController
     const controller = new AbortController();
@@ -468,7 +476,9 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
     setPhase('detect', 'running');
     void _persistPhaseSnapshot(get, 'detect', 'running');
-    const detectPromise = detectWithSignal(text, signal)
+    const detectPromise = (images.length > 0
+      ? detectMultimodalWithSignal(text, images, signal)
+      : detectWithSignal(text, signal))
       .then((result) => {
         set({ detectData: result, strategy: result.strategy ?? null });
         setPhase('detect', 'done');
@@ -738,6 +748,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
     set({
       text: detail.input_text,
+      images: [],
       error: null,
       detectData: detail.detect_data ?? null,
       sourceMeta: {
