@@ -39,6 +39,7 @@ class ImageOCRResult(BaseModel):
     file_id: str | None = None
     source_url: str | None = None
     ocr_text: str
+    accepted_text: str = ""
     blocks: list[OCRBlock] = Field(default_factory=list)
     confidence: float = 0.0
     extraction_source: str = "vision"

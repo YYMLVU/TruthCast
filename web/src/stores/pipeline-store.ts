@@ -463,6 +463,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     // 每次启动分析都生成新的 AbortController
     const controller = new AbortController();
     const signal = controller.signal;
+    const existingImages = get().images;
     
     const taskId = (opts?.taskId && String(opts.taskId)) || _makeTaskId();
     set({
@@ -475,7 +476,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       claims: [],
       rawEvidences: [],
       evidences: [],
-      images: opts?.taskId ? get().images : [],
+      images: existingImages,
       ocrResults: [],
       imageAnalyses: [],
       fusionReport: null,

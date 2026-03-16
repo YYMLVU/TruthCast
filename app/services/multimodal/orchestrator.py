@@ -31,7 +31,9 @@ def run_multimodal_detect(
         ocr_results.append(extract_image_text(stored))
         image_analyses.append(analyze_image(stored, raw_text))
 
-    ocr_texts = [item.ocr_text.strip() for item in ocr_results if item.ocr_text.strip()]
+    ocr_texts = [
+        item.accepted_text.strip() for item in ocr_results if item.accepted_text.strip()
+    ]
     enhanced_text = raw_text
     if ocr_texts:
         enhanced_text = "\n\n".join(part for part in [raw_text, *ocr_texts] if part)

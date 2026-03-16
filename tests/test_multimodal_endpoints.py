@@ -4,6 +4,36 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.schemas.multimodal import ImageAnalysisResult, ImageOCRResult
+
+
+def _fake_extract(image) -> ImageOCRResult:
+    return ImageOCRResult(
+        file_id=image.file_id,
+        source_url=image.public_url,
+        ocr_text="原始OCR文本",
+        accepted_text="正式入链OCR文本",
+        blocks=[],
+        confidence=0.92,
+        extraction_source="vision_llm",
+        status="success",
+    )
+
+
+def _fake_analyze(image, _text) -> ImageAnalysisResult:
+    return ImageAnalysisResult(
+        file_id=image.file_id,
+        source_url=image.public_url,
+        image_summary="图片分析摘要",
+        relevance_score=80,
+        relevance_reason="相关",
+        key_elements=[],
+        matched_claims=[],
+        semantic_conflicts=[],
+        image_credibility_label="supportive",
+        image_credibility_score=75,
+        status="success",
+    )
 
 
 def test_multimodal_upload_returns_file_metadata(tmp_path, monkeypatch) -> None:
@@ -37,6 +67,12 @@ def test_multimodal_detect_returns_typed_payload_for_uploaded_image(
     monkeypatch.setenv("TRUTHCAST_IMAGE_STORAGE_PATH", str(tmp_path))
     monkeypatch.setenv("TRUTHCAST_LLM_ENABLED", "false")
     monkeypatch.setenv("TRUTHCAST_RISK_LLM_ENABLED", "false")
+    monkeypatch.setattr(
+        "app.services.multimodal.orchestrator.extract_image_text", _fake_extract
+    )
+    monkeypatch.setattr(
+        "app.services.multimodal.orchestrator.analyze_image", _fake_analyze
+    )
     client = TestClient(app)
 
     upload = client.post(
@@ -77,6 +113,38 @@ def test_multimodal_detect_rejects_unknown_file_id(tmp_path, monkeypatch) -> Non
     )
 
     assert response.status_code == 404
+
+
+def test_multimodal_detect_uses_accepted_ocr_text_in_enhanced_text(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setenv("TRUTHCAST_IMAGE_STORAGE_PATH", str(tmp_path))
+    monkeypatch.setenv("TRUTHCAST_LLM_ENABLED", "false")
+    monkeypatch.setenv("TRUTHCAST_RISK_LLM_ENABLED", "false")
+
+    monkeypatch.setattr(
+        "app.services.multimodal.orchestrator.extract_image_text", _fake_extract
+    )
+    monkeypatch.setattr(
+        "app.services.multimodal.orchestrator.analyze_image", _fake_analyze
+    )
+
+    client = TestClient(app)
+    upload = client.post(
+        "/multimodal/upload",
+        files={"file": ("poster.png", b"fake-image-bytes", "image/png")},
+    )
+    file_id = upload.json()["file_id"]
+
+    response = client.post(
+        "/multimodal/detect",
+        json={"text": "新闻原文", "images": [{"file_id": file_id}], "force": True},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "正式入链OCR文本" in body["enhanced_text"]
+    assert "低置信原始OCR" not in body["enhanced_text"]
 
 
 def test_multimodal_detect_requires_text_or_images(tmp_path, monkeypatch) -> None:
