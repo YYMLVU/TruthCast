@@ -7,11 +7,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+from app.core.logger import get_logger
 from app.schemas.multimodal import ImageOCRResult, OCRBlock, StoredImageRecord
 from app.services.json_utils import serialize_for_json
 from app.services.multimodal.providers.ocr.base import OCRProviderSettings
 from app.services.multimodal.providers.ocr.paddleocr import extract_with_paddleocr
 from app.services.multimodal.providers.ocr.vision_llm import extract_with_vision_llm
+
+
+logger = get_logger("truthcast.multimodal.ocr")
 
 
 def _settings() -> OCRProviderSettings:
@@ -126,6 +130,11 @@ def _call_provider(
 
 
 def _failed_result(image: StoredImageRecord, error_message: str) -> ImageOCRResult:
+    logger.warning(
+        "多模态OCR：全部provider失败，已降级返回 failed 结果，file_id=%s, error=%s",
+        image.file_id,
+        error_message,
+    )
     result = ImageOCRResult(
         file_id=image.file_id,
         source_url=image.public_url,
@@ -159,6 +168,12 @@ def extract_image_text(image: StoredImageRecord) -> ImageOCRResult:
     }
     provider_name = (
         settings.provider if settings.provider in provider_map else "vision_llm"
+    )
+    logger.info(
+        "多模态OCR：开始识别，provider=%s, fallback=%s, file_id=%s",
+        provider_name,
+        settings.fallback_provider,
+        image.file_id,
     )
     _record_ocr_trace(
         "input",
@@ -194,11 +209,24 @@ def extract_image_text(image: StoredImageRecord) -> ImageOCRResult:
                 "status": result.status,
             },
         )
+        logger.info(
+            "多模态OCR：识别成功，provider=%s, confidence=%s, file_id=%s",
+            result.extraction_source,
+            result.confidence,
+            image.file_id,
+        )
         if (
             result.confidence < settings.fallback_threshold
             and settings.fallback_provider in provider_map
             and settings.fallback_provider != provider_name
         ):
+            logger.info(
+                "多模态OCR：主provider低置信，provider=%s, confidence=%s，尝试回退%s，file_id=%s",
+                provider_name,
+                result.confidence,
+                settings.fallback_provider,
+                image.file_id,
+            )
             _record_ocr_trace(
                 "fallback_selected",
                 {
@@ -214,12 +242,29 @@ def extract_image_text(image: StoredImageRecord) -> ImageOCRResult:
                 settings.max_retries,
                 settings.retry_delay,
             )
+            logger.info(
+                "多模态OCR：回退成功，provider=%s, confidence=%s, file_id=%s",
+                fallback_result.extraction_source,
+                fallback_result.confidence,
+                image.file_id,
+            )
             result = fallback_result
     except Exception as primary_exc:
+        logger.warning(
+            "多模态OCR：主provider调用失败，provider=%s, file_id=%s, error=%s",
+            provider_name,
+            image.file_id,
+            primary_exc,
+        )
         if (
             settings.fallback_provider in provider_map
             and settings.fallback_provider != provider_name
         ):
+            logger.info(
+                "多模态OCR：尝试回退provider=%s, file_id=%s",
+                settings.fallback_provider,
+                image.file_id,
+            )
             _record_ocr_trace(
                 "fallback_selected",
                 {
@@ -236,6 +281,12 @@ def extract_image_text(image: StoredImageRecord) -> ImageOCRResult:
                     settings.max_retries,
                     settings.retry_delay,
                 )
+                logger.info(
+                    "多模态OCR：回退成功，provider=%s, confidence=%s, file_id=%s",
+                    result.extraction_source,
+                    result.confidence,
+                    image.file_id,
+                )
             except Exception as fallback_exc:
                 return _failed_result(
                     image,
@@ -244,6 +295,13 @@ def extract_image_text(image: StoredImageRecord) -> ImageOCRResult:
         else:
             return _failed_result(image, str(primary_exc))
     gated = _gate_text(result, settings.confidence_threshold)
+    logger.info(
+        "多模态OCR：门控完成，provider=%s, accepted=%s, confidence=%s, file_id=%s",
+        gated.extraction_source,
+        bool(gated.accepted_text),
+        gated.confidence,
+        image.file_id,
+    )
     _record_ocr_trace(
         "output",
         {
