@@ -5,18 +5,26 @@ import type {
   ContentDraft,
   DetectResponse,
   EvidenceItem,
+  ImageAnalysisResult,
+  ImageInput,
+  ImageOCRResult,
+  MultimodalDetectResponse,
+  MultimodalFusionReport,
   Phase,
   PhaseStatus,
   PhaseState,
   ReportResponse,
   SimulateResponse,
+  StoredImage,
   HistoryDetail,
   StrategyConfig,
 } from '@/types';
 import {
   alignEvidence,
   alignEvidenceWithSignal,
+  analyzeMultimodalImagesWithSignal,
   detect,
+  detectMultimodalWithSignal,
   detectWithSignal,
   detectClaims,
   detectClaimsWithSignal,
@@ -38,6 +46,7 @@ interface PipelineState {
   restorableUpdatedAt: string | null;
   text: string;
   error: string | null;
+  enhancedText: string | null;
   detectData: DetectResponse | null;
   strategy: StrategyConfig | null;
   sourceMeta: {
@@ -48,6 +57,10 @@ interface PipelineState {
   claims: ClaimItem[];
   rawEvidences: EvidenceItem[];
   evidences: EvidenceItem[];
+  images: StoredImage[];
+  ocrResults: ImageOCRResult[];
+  imageAnalyses: ImageAnalysisResult[];
+  fusionReport: MultimodalFusionReport | null;
   report: ReportResponse | null;
   simulation: SimulateResponse | null;
   simulationStage: string | null;
@@ -63,6 +76,7 @@ interface PipelineState {
   probeLatestRestorable: () => Promise<void>;
   
   setText: (text: string) => void;
+  setImages: (images: StoredImage[]) => void;
   setPhase: (phase: Phase, status: PhaseStatus) => void;
   setError: (error: string | null) => void;
   setContent: (content: ContentDraft | null) => void;
@@ -96,6 +110,7 @@ const initialState = {
   restorableUpdatedAt: null as string | null,
   text: '网传某事件"100%真实且必须立刻转发"，消息来源为内部人士，请快速核查其真实性风险。',
   error: null,
+  enhancedText: null as string | null,
   detectData: null as DetectResponse | null,
   strategy: null as StrategyConfig | null,
   sourceMeta: null as {
@@ -106,6 +121,10 @@ const initialState = {
   claims: [] as ClaimItem[],
   rawEvidences: [] as EvidenceItem[],
   evidences: [] as EvidenceItem[],
+  images: [] as StoredImage[],
+  ocrResults: [] as ImageOCRResult[],
+  imageAnalyses: [] as ImageAnalysisResult[],
+  fusionReport: null as MultimodalFusionReport | null,
   report: null as ReportResponse | null,
   simulation: null as SimulateResponse | null,
   simulationStage: null as string | null,
@@ -118,6 +137,12 @@ const initialState = {
 };
 
 const DEFAULT_TEXT = initialState.text;
+
+function isMultimodalDetectResponse(
+  result: DetectResponse | MultimodalDetectResponse
+): result is MultimodalDetectResponse {
+  return 'detect_data' in result;
+}
 
 function _makeTaskId(): string {
   try {
@@ -134,9 +159,12 @@ function _phasePayload(get: () => PipelineState, phase: Phase): Record<string, u
   switch (phase) {
     case 'detect':
       return {
+        enhancedText: s.enhancedText,
         detectData: s.detectData,
         strategy: s.strategy,
         sourceMeta: s.sourceMeta,
+        images: s.images,
+        ocrResults: s.ocrResults,
       };
     case 'claims':
       return { claims: s.claims };
@@ -150,6 +178,8 @@ function _phasePayload(get: () => PipelineState, phase: Phase): Record<string, u
         report: s.report,
         recordId: s.recordId,
         sourceMeta: s.sourceMeta,
+        imageAnalyses: s.imageAnalyses,
+        fusionReport: s.fusionReport,
       };
     case 'simulation':
       return { simulation: s.simulation };
@@ -208,11 +238,16 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       text: '',
       error: null,
       detectData: null,
+      enhancedText: null,
       strategy: null,
       sourceMeta: null,
       claims: [],
       rawEvidences: [],
       evidences: [],
+      images: [],
+      ocrResults: [],
+      imageAnalyses: [],
+      fusionReport: null,
       report: null,
       simulation: null,
       content: null,
@@ -292,6 +327,8 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   },
 
   setText: (text) => set({ text }),
+
+  setImages: (images) => set({ images }),
   
   setPhase: (phase, status) =>
     set((state) => ({
@@ -334,6 +371,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const next: Partial<PipelineState> = {
         taskId: latest.task_id,
         text: latest.input_text || current.text,
+        enhancedText: null,
         phases: latest.phases,
         error: null,
         isFromHistory: false,
@@ -349,9 +387,12 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         const payload = (snap.payload ?? {}) as any;
         switch (snap.phase) {
           case 'detect':
+            if (typeof payload.enhancedText === 'string') next.enhancedText = payload.enhancedText;
             if (payload.detectData) next.detectData = payload.detectData as DetectResponse;
             if (payload.strategy) next.strategy = payload.strategy as StrategyConfig;
             if (payload.sourceMeta) next.sourceMeta = payload.sourceMeta;
+            if (Array.isArray(payload.images)) next.images = payload.images as StoredImage[];
+            if (Array.isArray(payload.ocrResults)) next.ocrResults = payload.ocrResults as ImageOCRResult[];
             break;
           case 'claims':
             if (Array.isArray(payload.claims)) next.claims = payload.claims as ClaimItem[];
@@ -364,6 +405,8 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
             if (payload.report) next.report = payload.report as ReportResponse;
             if (typeof payload.recordId === 'string') next.recordId = payload.recordId as string;
             if (payload.sourceMeta) next.sourceMeta = payload.sourceMeta;
+            if (Array.isArray(payload.imageAnalyses)) next.imageAnalyses = payload.imageAnalyses as ImageAnalysisResult[];
+            if (payload.fusionReport) next.fusionReport = payload.fusionReport as MultimodalFusionReport;
             break;
           case 'simulation':
             if (payload.simulation) next.simulation = payload.simulation as SimulateResponse;
@@ -421,17 +464,23 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     // 每次启动分析都生成新的 AbortController
     const controller = new AbortController();
     const signal = controller.signal;
+    const existingImages = get().images;
     
     const taskId = (opts?.taskId && String(opts.taskId)) || _makeTaskId();
     set({
       taskId,
       error: null,
       detectData: null,
+      enhancedText: null,
       strategy: null,
       sourceMeta: opts?.taskId ? get().sourceMeta : null,
       claims: [],
       rawEvidences: [],
       evidences: [],
+      images: existingImages,
+      ocrResults: [],
+      imageAnalyses: [],
+      fusionReport: null,
       report: null,
       simulation: null,
       content: null,
@@ -468,13 +517,29 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
     setPhase('detect', 'running');
     void _persistPhaseSnapshot(get, 'detect', 'running');
-    const detectPromise = detectWithSignal(text, signal)
+    let analysisText = text;
+    const detectPromise = (get().images.length > 0
+      ? detectMultimodalWithSignal(text, get().images as ImageInput[], signal)
+      : detectWithSignal(text, signal))
       .then((result) => {
-        set({ detectData: result, strategy: result.strategy ?? null });
+        if (isMultimodalDetectResponse(result)) {
+          analysisText = result.enhanced_text || text;
+          set({
+            detectData: result.detect_data ?? null,
+            enhancedText: result.enhanced_text || null,
+            strategy: result.detect_data?.strategy ?? null,
+            images: result.images ?? [],
+            ocrResults: result.ocr_results ?? [],
+            imageAnalyses: result.image_analyses ?? [],
+            fusionReport: result.fusion_report ?? null,
+          });
+        } else {
+          set({ detectData: result, strategy: result.strategy ?? null, enhancedText: null });
+        }
         setPhase('detect', 'done');
         void _persistPhaseSnapshot(get, 'detect', 'done');
         toast.success('风险快照完成');
-        if (result.truncated) {
+        if (!isMultimodalDetectResponse(result) && result.truncated) {
           toast.warning('输入文本较长，已自动截断至 8000 字符以内进行分析');
         }
       })
@@ -511,13 +576,28 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           payload: { reason, detected_text_type: currentStrategy.detected_text_type },
         });
         return;
-      }
-      
+        }
+
       try {
+        const imageBranchPromise = get().images.length > 0
+          ? analyzeMultimodalImagesWithSignal(analysisText, get().images as ImageInput[], signal)
+              .then((imageAnalyses) => {
+                set({ imageAnalyses });
+                return imageAnalyses;
+              })
+              .catch((err) => {
+                if (isAbortError(err)) {
+                  return [] as ImageAnalysisResult[];
+                }
+                console.warn('[multimodal] image analysis failed, continuing with text branch:', err);
+                toast.warning(`图片分析失败，已继续文本链路：${err instanceof Error ? err.message : '未知错误'}`);
+                return [] as ImageAnalysisResult[];
+              })
+          : Promise.resolve([] as ImageAnalysisResult[]);
         setPhase('claims', 'running');
         void _persistPhaseSnapshot(get, 'claims', 'running');
         if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-        const claimsResult = await detectClaimsWithSignal(text, currentStrategy, signal);
+          const claimsResult = await detectClaimsWithSignal(analysisText, currentStrategy, signal);
         set({ claims: claimsResult });
         setPhase('claims', 'done');
         void _persistPhaseSnapshot(get, 'claims', 'done');
@@ -529,7 +609,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         try {
           // Step 1: 证据检索
           if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-          const rawEvidences = await detectEvidenceWithSignal(text, claimsResult, currentStrategy, signal);
+          const rawEvidences = await detectEvidenceWithSignal(analysisText, claimsResult, currentStrategy, signal);
           set({ rawEvidences });
           toast.success(`证据检索完成，共 ${rawEvidences.length} 条`);
           
@@ -563,14 +643,25 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
           const currentDetectData = get().detectData;
           const currentSourceMeta = get().sourceMeta;
-          const reportResponse = await detectReportWithSignal(
-            text,
+          const currentImageAnalyses = await imageBranchPromise;
+          const currentMultimodalPayload = get().images.length > 0
+            ? {
+                raw_text: text,
+                enhanced_text: analysisText,
+                images: get().images,
+                ocr_results: get().ocrResults,
+                image_analyses: currentImageAnalyses,
+              }
+            : null;
+        const reportResponse = await detectReportWithSignal(
+          analysisText,
             claimsResult,
             evidenceResult,
             currentDetectData,
             currentStrategy,
             currentSourceMeta,
-            signal
+            signal,
+            currentMultimodalPayload,
           );
           recordId = reportResponse.record_id;
           reportResult = {
@@ -585,8 +676,16 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
             summary: reportResponse.summary,
             suspicious_points: reportResponse.suspicious_points,
             claim_reports: reportResponse.claim_reports,
+            multimodal: reportResponse.multimodal ?? null,
           };
-          set({ report: reportResult, recordId });
+          set({
+            report: reportResult,
+            recordId,
+            imageAnalyses: Array.isArray((reportResponse.multimodal as any)?.image_analyses)
+              ? ((reportResponse.multimodal as any).image_analyses as ImageAnalysisResult[])
+              : currentImageAnalyses,
+            fusionReport: ((reportResponse.multimodal as any)?.fusion_report as MultimodalFusionReport | undefined) ?? null,
+          });
           setPhase('report', 'done');
           void _persistPhaseSnapshot(get, 'report', 'done');
           toast.success('综合报告生成完成');
@@ -609,8 +708,8 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         void _persistPhaseSnapshot(get, 'simulation', 'running');
         try {
           await simulateStream(
-            text,
-            (event: SimulationStreamEvent) => {
+             analysisText,
+             (event: SimulationStreamEvent) => {
               console.log('[Simulation Stream] Received event:', event.stage, event.data);
               const now = Date.now();
               const currentSimulation = get().simulation || {
@@ -738,6 +837,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
     set({
       text: detail.input_text,
+      enhancedText: (detail.report.multimodal as any)?.enhanced_text ?? null,
       error: null,
       detectData: detail.detect_data ?? null,
       sourceMeta: {
@@ -748,6 +848,12 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       claims,
       rawEvidences: evidences,
       evidences,
+      images: Array.isArray((detail.report.multimodal as any)?.images) ? ((detail.report.multimodal as any).images as StoredImage[]) : [],
+      ocrResults: Array.isArray((detail.report.multimodal as any)?.ocr_results) ? ((detail.report.multimodal as any).ocr_results as ImageOCRResult[]) : [],
+      imageAnalyses: Array.isArray((detail.report.multimodal as any)?.image_analyses)
+        ? ((detail.report.multimodal as any).image_analyses as ImageAnalysisResult[])
+        : [],
+      fusionReport: ((detail.report.multimodal as any)?.fusion_report as MultimodalFusionReport | undefined) ?? null,
       report: detail.report,
       simulation: simulation ?? detail.simulation ?? null,
       content: detail.content ?? null,
@@ -759,6 +865,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   retryPhase: async (phase: Phase) => {
     const { text, setPhase, setError } = get();
+    const effectiveText = get().enhancedText || text;
     
     const phaseNames: Record<Phase, string> = {
       detect: '风险快照',
@@ -780,8 +887,21 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     try {
       switch (phase) {
         case 'detect':
-          const detectResult = await detect(text);
-          set({ detectData: detectResult, strategy: detectResult.strategy ?? null });
+          if (get().images.length > 0) {
+            const detectResult = await detectMultimodalWithSignal(text, get().images as ImageInput[]);
+            set({
+              detectData: detectResult.detect_data ?? null,
+              enhancedText: detectResult.enhanced_text ?? null,
+              strategy: detectResult.detect_data?.strategy ?? null,
+              images: detectResult.images ?? [],
+              ocrResults: detectResult.ocr_results ?? [],
+              imageAnalyses: detectResult.image_analyses ?? [],
+              fusionReport: detectResult.fusion_report ?? null,
+            });
+          } else {
+            const detectResult = await detect(text);
+            set({ detectData: detectResult, strategy: detectResult.strategy ?? null, enhancedText: null });
+          }
           setPhase('detect', 'done');
           void _persistPhaseSnapshot(get, 'detect', 'done');
           toast.success('风险快照重试成功');
@@ -789,7 +909,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
         case 'claims':
           const currentStrategy = get().strategy;
-          const claimsResult = await detectClaims(text, currentStrategy);
+          const claimsResult = await detectClaims(effectiveText, currentStrategy);
           set({ claims: claimsResult });
           setPhase('claims', 'done');
           void _persistPhaseSnapshot(get, 'claims', 'done');
@@ -800,7 +920,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           // Step 1: 证据检索
           const evClaims = get().claims;
           const evStrategy = get().strategy;
-          const rawEvidences = await detectEvidence(text, evClaims, evStrategy);
+          const rawEvidences = await detectEvidence(effectiveText, evClaims, evStrategy);
           set({ rawEvidences });
           toast.success(`证据检索完成，共 ${rawEvidences.length} 条`);
           
@@ -818,13 +938,25 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           const reportDetectData = get().detectData;
           const reportStrategy = get().strategy;
           const reportSourceMeta = get().sourceMeta;
+          const currentImageAnalyses = get().images.length > 0
+            ? await analyzeMultimodalImagesWithSignal(effectiveText, get().images as ImageInput[])
+            : [];
           const reportResponse = await detectReport(
-            text,
+            effectiveText,
             reportClaims,
             reportEvidences,
             reportDetectData,
             reportStrategy,
             reportSourceMeta,
+            get().images.length > 0
+              ? {
+                  raw_text: text,
+                  enhanced_text: effectiveText,
+                  images: get().images,
+                  ocr_results: get().ocrResults,
+                  image_analyses: currentImageAnalyses,
+                }
+              : null,
           );
           const newRecordId = reportResponse.record_id;
           const reportResult: ReportResponse = {
@@ -839,8 +971,16 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
             summary: reportResponse.summary,
             suspicious_points: reportResponse.suspicious_points,
             claim_reports: reportResponse.claim_reports,
+            multimodal: reportResponse.multimodal ?? null,
           };
-          set({ report: reportResult, recordId: newRecordId });
+          set({
+            report: reportResult,
+            recordId: newRecordId,
+            imageAnalyses: Array.isArray((reportResponse.multimodal as any)?.image_analyses)
+              ? ((reportResponse.multimodal as any).image_analyses as ImageAnalysisResult[])
+              : currentImageAnalyses,
+            fusionReport: ((reportResponse.multimodal as any)?.fusion_report as MultimodalFusionReport | undefined) ?? null,
+          });
           setPhase('report', 'done');
           void _persistPhaseSnapshot(get, 'report', 'done');
           toast.success('综合报告重试成功');
@@ -852,7 +992,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           const simReport = get().report;
           
           await simulateStream(
-            text,
+            effectiveText,
             (event: SimulationStreamEvent) => {
               console.log('[Simulation Retry Stream] Received event:', event.stage, event.data);
               const now = Date.now();

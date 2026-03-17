@@ -7,6 +7,9 @@ import type {
   ContentDraft,
   DetectResponse,
   EvidenceItem,
+  ImageAnalysisResult,
+  ImageInput,
+  MultimodalDetectResponse,
   Phase,
   PhaseState,
   PhaseStatus,
@@ -19,6 +22,12 @@ import type {
 } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:8000';
+
+export function resolveApiUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+}
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -72,6 +81,60 @@ export async function detect(text: string): Promise<DetectResponse> {
 export async function detectWithSignal(text: string, signal?: AbortSignal): Promise<DetectResponse> {
   const { data } = await api.post<DetectResponse>('/detect', { text }, { signal });
   return data;
+}
+
+export async function uploadMultimodalImage(file: File): Promise<{
+  file_id: string;
+  filename: string;
+  mime_type: string;
+  size: number;
+  public_url?: string | null;
+}> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${API_BASE}/multimodal/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new Error(`多模态上传失败: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function deleteMultimodalImage(fileId: string): Promise<{ file_id: string; deleted: boolean }> {
+  const { data } = await api.delete<{ file_id: string; deleted: boolean }>(`/multimodal/files/${fileId}`);
+  return data;
+}
+
+export async function detectMultimodalWithSignal(
+  text?: string,
+  images?: ImageInput[],
+  signal?: AbortSignal
+): Promise<MultimodalDetectResponse> {
+  const { data } = await api.post<MultimodalDetectResponse>(
+    '/multimodal/detect',
+    {
+      text,
+      images,
+      force: true,
+    },
+    { signal }
+  );
+  return data;
+}
+
+export async function analyzeMultimodalImagesWithSignal(
+  text: string | undefined,
+  images: ImageInput[],
+  signal?: AbortSignal
+): Promise<ImageAnalysisResult[]> {
+  const { data } = await api.post<{ image_analyses: ImageAnalysisResult[] }>(
+    '/multimodal/analyze-images',
+    { text, images },
+    { signal }
+  );
+  return data.image_analyses;
 }
 
 export async function detectUrl(url: string, signal?: AbortSignal): Promise<UrlDetectResponse> {
@@ -142,6 +205,7 @@ export interface DetectReportResult {
     final_stance: string;
     notes: string[];
   }>;
+  multimodal?: Record<string, unknown> | null;
 }
 
 export async function alignEvidence(
@@ -181,7 +245,8 @@ export async function detectReport(
   evidences?: EvidenceItem[],
   detectData?: DetectResponse | null,
   strategy?: StrategyConfig | null,
-  sourceMeta?: { source_url?: string | null; source_title?: string | null; source_publish_date?: string | null } | null
+  sourceMeta?: { source_url?: string | null; source_title?: string | null; source_publish_date?: string | null } | null,
+  multimodal?: Record<string, unknown> | null,
 ): Promise<DetectReportResult> {
   const { data } = await api.post<DetectReportResult>('/detect/report', {
     text,
@@ -192,6 +257,7 @@ export async function detectReport(
     source_url: sourceMeta?.source_url,
     source_title: sourceMeta?.source_title,
     source_publish_date: sourceMeta?.source_publish_date,
+    multimodal,
   });
   return data;
 }
@@ -203,7 +269,8 @@ export async function detectReportWithSignal(
   detectData?: DetectResponse | null,
   strategy?: StrategyConfig | null,
   sourceMeta?: { source_url?: string | null; source_title?: string | null; source_publish_date?: string | null } | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  multimodal?: Record<string, unknown> | null,
 ): Promise<DetectReportResult> {
   const { data } = await api.post<DetectReportResult>(
     '/detect/report',
@@ -216,6 +283,7 @@ export async function detectReportWithSignal(
       source_url: sourceMeta?.source_url,
       source_title: sourceMeta?.source_title,
       source_publish_date: sourceMeta?.source_publish_date,
+      multimodal,
     },
     { signal }
   );

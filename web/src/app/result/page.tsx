@@ -4,15 +4,18 @@ import { useState } from 'react';
 import { ProgressTimeline } from '@/components/layout';
 import { RiskOverview, ClaimList, EvidenceChain, ReportCard, ExportButton } from '@/components/features';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { resolveApiUrl } from '@/services/api';
 import { usePipelineStore } from '@/stores/pipeline-store';
 import type { Phase } from '@/types';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Sparkles, Layers3 } from 'lucide-react';
 
 export default function ResultPage() {
   const [showFullInput, setShowFullInput] = useState(false);
   const {
     text,
     detectData,
+    images,
+    fusionReport,
     claims,
     rawEvidences,
     evidences,
@@ -68,9 +71,9 @@ export default function ResultPage() {
             </div>
           )}
 
-          <div className="rounded-lg border bg-background p-4 space-y-3">
+          <div className="rounded-lg border bg-background p-4 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h1 className="font-semibold text-foreground">输入新闻原文</h1>
+              <h1 className="font-semibold text-foreground">输入新闻</h1>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
@@ -105,6 +108,44 @@ export default function ResultPage() {
               </div>
             ) : (
               <div className="text-sm text-muted-foreground">当前无可展示的输入新闻</div>
+            )}
+
+            {images.length > 0 && (
+              <div className="space-y-3 border-t pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-medium text-foreground">图片输入</h2>
+                  <span className="text-xs rounded-full border px-2 py-1 text-muted-foreground">
+                    已上传 {images.length} 张图片
+                  </span>
+              </div>
+
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {images.map((image) => (
+                    <div key={image.file_id} className="overflow-hidden rounded-md border bg-muted/30">
+                      <div className="aspect-[16/10] bg-background">
+                        {resolveApiUrl(image.public_url) ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={resolveApiUrl(image.public_url) ?? ''}
+                            alt={image.filename}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                            无法预览
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-0.5 px-2 py-1.5">
+                        <div className="text-xs font-medium text-foreground truncate">{image.filename}</div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {image.mime_type} · {(image.size / 1024).toFixed(1)} KB
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -144,6 +185,43 @@ export default function ResultPage() {
       <ErrorBoundary title="综合报告加载失败">
         <ReportCard report={report} isLoading={phases.report === 'running'} />
       </ErrorBoundary>
+
+      {fusionReport && (
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-background to-sky-50/70 p-5 shadow-sm shadow-slate-200/40 dark:border-slate-800 dark:from-slate-950 dark:via-background dark:to-slate-900/80 dark:shadow-black/10">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.12),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(15,23,42,0.06),transparent_32%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.18),transparent_32%),radial-gradient(circle_at_bottom_left,rgba(148,163,184,0.12),transparent_30%)]" />
+          <div className="relative space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 rounded-full border border-sky-200/80 bg-white/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-sky-700 shadow-sm shadow-sky-100/50 dark:border-sky-900/80 dark:bg-slate-950/60 dark:text-sky-300">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  融合结论
+                </div>
+                <h2 className="text-lg font-semibold text-foreground">多模态融合摘要</h2>
+                <p className="text-sm text-muted-foreground">
+                  这是综合报告之后的图文交叉判断，用于补充说明图片输入对整体结论的影响。
+                </p>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-background/80 px-3 py-1.5 text-xs text-muted-foreground shadow-sm dark:border-slate-800 dark:bg-slate-950/60">
+                <Layers3 className="h-3.5 w-3.5" />
+                报告补充结论
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-white/70 bg-white/75 p-4 text-sm leading-7 text-slate-700 shadow-inner shadow-white/70 backdrop-blur-sm dark:border-slate-800/80 dark:bg-slate-950/65 dark:text-slate-200 dark:shadow-black/20">
+              {fusionReport.fusion_summary}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center rounded-full border border-sky-200/80 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-800 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-200">
+                一致性：{fusionReport.multimodal_consistency}
+              </span>
+              <span className="inline-flex items-center rounded-full border border-slate-200/80 bg-slate-100/80 px-3 py-1 text-xs font-medium text-slate-700 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-200">
+                图像证据：{fusionReport.image_evidence_status}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
