@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { History, Eye, MessageSquare, RefreshCw, ExternalLink } from 'lucide-react';
@@ -16,12 +15,12 @@ import { useHistoryList, useHistoryDetail, useSubmitFeedback } from '@/hooks/use
 import { ExportButton } from '@/components/features/export';
 import { usePipelineStore } from '@/stores/pipeline-store';
 
-const riskLabelColors: Record<string, string> = {
-  credible: 'bg-green-500',
-  suspicious: 'bg-yellow-500',
-  high_risk: 'bg-orange-500',
-  needs_context: 'bg-blue-500',
-  likely_misinformation: 'bg-red-500',
+const riskLabelVariants: Record<string, "riskLow" | "riskMedium" | "riskHigh" | "riskCritical"> = {
+  credible: "riskLow",
+  suspicious: "riskMedium",
+  high_risk: "riskHigh",
+  needs_context: "riskLow",
+  likely_misinformation: "riskCritical",
 };
 
 export function HistoryList() {
@@ -149,7 +148,7 @@ export function HistoryList() {
                     </Button>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <Badge className={riskLabelColors[item.risk_label] ?? 'bg-gray-500'}>
+                    <Badge variant={riskLabelVariants[item.risk_label] ?? "default"}>
                       {zhRiskLabel(item.risk_label)}
                     </Badge>
                     <span className="text-muted-foreground">分数: {item.risk_score}</span>
@@ -222,7 +221,7 @@ export function HistoryList() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">风险标签：</span>
-                  <Badge className={riskLabelColors[detail.risk_label] ?? 'bg-gray-500'}>
+                  <Badge variant={riskLabelVariants[detail.risk_label] ?? "default"}>
                     {zhRiskLabel(detail.risk_label)}
                   </Badge>
                 </div>

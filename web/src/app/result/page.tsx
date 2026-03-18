@@ -42,7 +42,7 @@ export default function ResultPage() {
   };
 
   return (
-    <div className="space-y-6 px-2 md:px-0">
+    <div className="space-y-6 px-2 md:px-4 py-4 md:py-6">
       {/* 进度时间线 + 导出按钮 */}
       <div className="flex flex-col items-center gap-4">
         <ProgressTimeline
@@ -153,10 +153,10 @@ export default function ResultPage() {
 
       {/* 分析完成庆祝 banner */}
       {allDone && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm animate-in fade-in duration-700">
-          <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+        <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary/5 border border-primary/20 text-primary text-sm animate-in fade-in duration-700">
+          <CheckCircle2 className="h-5 w-5 shrink-0" />
           <span className="font-medium">分析完成！</span>
-          <span className="text-green-700">全链路核查已结束，请查看下方各模块结果。</span>
+          <span className="text-primary/80">全链路核查已结束，请查看下方各模块结果。</span>
         </div>
       )}
 

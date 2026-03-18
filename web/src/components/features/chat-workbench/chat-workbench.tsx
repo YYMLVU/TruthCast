@@ -759,7 +759,7 @@ const {
   };
 
   const ChatCard = (
-    <Card className="flex flex-col h-full min-h-0 py-4 gap-1">
+    <Card className="flex flex-col h-full min-h-0 py-4 gap-1 border-border/50 shadow-sm">
       <CardHeader className="pb-0 shrink-0 px-4">
         <CardTitle className="text-base">对话工作台</CardTitle>
       </CardHeader>
@@ -813,7 +813,7 @@ const {
   );
 
   const ContextCard = (
-    <Card className="flex flex-col h-full min-h-0 py-4 gap-4">
+    <Card className="flex flex-col h-full min-h-0 py-4 gap-4 border-l-2 border-l-primary/30">
       <CardHeader className="pb-2 shrink-0 px-4">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-base">上下文</CardTitle>

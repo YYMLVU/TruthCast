@@ -137,16 +137,21 @@ export default function HomePage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4">
+    <div className="max-w-3xl mx-auto px-4 py-6 md:py-10">
       <Card>
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <FileSearch className="h-10 w-10 md:h-12 md:w-12 text-primary" />
+        <CardHeader className="text-center relative">
+          <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent rounded-t-xl" />
+          <div className="relative">
+            <div className="flex justify-center mb-4">
+              <div className="p-3 rounded-full bg-primary/10">
+                <FileSearch className="h-8 w-8 md:h-10 md:w-10 text-primary" />
+              </div>
+            </div>
+            <CardTitle className="text-xl md:text-2xl">TruthCast 智能研判台</CardTitle>
+            <CardDescription className="text-sm md:text-base mt-2">
+              输入新闻文本或网页链接，系统将分阶段返回风险快照、主张抽取、证据链与综合报告。
+            </CardDescription>
           </div>
-          <CardTitle className="text-xl md:text-2xl">TruthCast 智能研判台</CardTitle>
-          <CardDescription className="text-sm md:text-base">
-            输入新闻文本或网页链接，系统将分阶段返回风险快照、主张抽取、证据链与综合报告。
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <Tabs defaultValue="text" className="w-full">
@@ -299,7 +304,7 @@ export default function HomePage() {
                   size="lg"
                   onClick={handleRun}
                   disabled={isLoading || isUploading || (!text.trim() && images.length === 0)}
-                  className="w-full sm:w-auto sm:min-w-48"
+                  className="w-full sm:w-auto sm:min-w-48 bg-primary hover:bg-primary/90"
                 >
                   {isLoading ? '分析中...' : '开始分析'}
                 </Button>

@@ -36,11 +36,11 @@ export function Header() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-lg supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-14 items-center justify-between max-w-7xl px-4">
-        <Link href="/" className="flex items-center space-x-2 shrink-0">
-          <FileSearch className="h-6 w-6" />
-          <span className="font-bold">TruthCast</span>
+        <Link href="/" className="flex items-center space-x-2 shrink-0 group">
+          <FileSearch className="h-6 w-6 text-primary transition-transform group-hover:scale-110" />
+          <span className="font-bold text-primary">TruthCast</span>
         </Link>
         
         {/* Desktop Navigation */}
@@ -52,9 +52,12 @@ export function Header() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'flex items-center gap-1.5 transition-colors hover:text-foreground/80',
-                  isActive ? 'text-foreground' : 'text-foreground/60'
+                  'flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-md text-sm font-medium',
+                  isActive
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -74,9 +77,13 @@ export function Header() {
               <span className="sr-only">打开菜单</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-[280px] pt-10">
+          <SheetContent side="right" className="w-[280px] pt-12 bg-background/95 backdrop-blur-lg">
             <SheetTitle className="sr-only">导航菜单</SheetTitle>
-            <nav className="flex flex-col space-y-4">
+            <div className="flex items-center gap-2 mb-6 px-4">
+              <FileSearch className="h-5 w-5 text-primary" />
+              <span className="font-bold text-primary">TruthCast</span>
+            </div>
+            <nav className="flex flex-col space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
@@ -84,11 +91,13 @@ export function Header() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={isActive ? 'page' : undefined}
                     onClick={() => setOpen(false)}
                     className={cn(
                       'flex items-center gap-3 px-4 py-3 rounded-lg text-base font-medium transition-colors',
-                      'hover:bg-muted',
-                      isActive ? 'bg-muted text-foreground' : 'text-foreground/70'
+                      isActive
+                        ? 'text-primary bg-primary/10'
+                        : 'text-foreground/70 hover:bg-muted'
                     )}
                   >
                     <Icon className="h-5 w-5" />

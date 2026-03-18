@@ -27,8 +27,8 @@ export default function SimulationPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* 进度时间线 + 导出按钮 */}
+    <div className="space-y-6 px-2 md:px-4 py-4 md:py-6">
+      <h1 className="text-xl md:text-2xl font-bold text-center text-primary">舆情预演</h1>
       <div className="flex flex-col items-center gap-4">
         <ProgressTimeline
           phases={phases}

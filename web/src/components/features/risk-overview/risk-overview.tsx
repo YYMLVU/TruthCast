@@ -67,20 +67,20 @@ export function RiskOverview({ data, isLoading }: RiskOverviewProps) {
 
   const reasons = Array.isArray(data.reasons) ? data.reasons : [];
 
-  const labelColors: Record<string, string> = {
-    credible: 'bg-green-500',
-    suspicious: 'bg-yellow-500',
-    high_risk: 'bg-orange-500',
-    needs_context: 'bg-blue-500',
-    likely_misinformation: 'bg-red-500',
+  const labelVariants: Record<string, "riskLow" | "riskMedium" | "riskHigh" | "riskCritical"> = {
+    credible: "riskLow",
+    suspicious: "riskMedium",
+    high_risk: "riskHigh",
+    needs_context: "riskLow",
+    likely_misinformation: "riskCritical",
   };
 
   const scoreBarColor: Record<string, string> = {
-    credible: 'bg-green-400',
-    suspicious: 'bg-yellow-400',
-    high_risk: 'bg-orange-400',
-    needs_context: 'bg-blue-400',
-    likely_misinformation: 'bg-red-400',
+    credible: 'bg-[var(--risk-low)]',
+    suspicious: 'bg-[var(--risk-medium)]',
+    high_risk: 'bg-[var(--risk-high)]',
+    needs_context: 'bg-[var(--risk-low)]',
+    likely_misinformation: 'bg-[var(--risk-critical)]',
   };
 
   return (
@@ -91,7 +91,7 @@ export function RiskOverview({ data, isLoading }: RiskOverviewProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <Badge className={labelColors[data.label] ?? 'bg-gray-500'}>
+          <Badge variant={labelVariants[data.label] ?? "default"}>
             {zhRiskLabel(data.label)}
           </Badge>
           <span className="text-sm text-muted-foreground">

@@ -401,7 +401,7 @@ export default function ContentPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-2 md:px-4 py-4 md:py-6">
       {/* 进度时间线 */}
       <div className="flex flex-col items-center gap-4">
         <ProgressTimeline
@@ -429,7 +429,7 @@ export default function ContentPage() {
         )}
       </div>
 
-      <h1 className="text-2xl font-bold mb-6">应对内容生成</h1>
+      <h1 className="text-xl md:text-2xl font-bold text-center text-primary mb-6">应对内容生成</h1>
 
       {/* 生成控制面板 */}
       <Card className="mb-6">
@@ -552,7 +552,7 @@ export default function ContentPage() {
             <Button
               onClick={handleGenerateAll}
               disabled={loadingAll || loadingClarification || loadingFaq || loadingScripts || selectedPlatforms.length === 0}
-              className="w-full md:w-[520px]"
+              className="w-full md:w-[520px] bg-primary hover:bg-primary/90"
             >
               {loadingAll ? '一键生成中...' : '一键生成（澄清稿 + FAQ + 多平台话术）'}
             </Button>
