@@ -1,233 +1,176 @@
-import pytest
-import httpx
 from unittest.mock import MagicMock, patch
-from app.services.news_crawler import crawl_news_url, _preprocess_html, CrawledNews
 
-def test_preprocess_html():
-    html = """
-    <html>
-        <head><title>Ignore Me</title></head>
-        <body>
-            <nav>Menu</nav>
-            <article>
-                <h1>Real Title</h1>
-                <p>Real content here.</p>
-                <script>alert('bad');</script>
-                <style>.ads { display: none; }</style>
-            </article>
-            <footer>Contact Us</footer>
-            <!-- Secret comment -->
-        </body>
-    </html>
-    """
-    cleaned = _preprocess_html(html)
-    assert "Real Title" in cleaned
-    assert "Real content here" in cleaned
-    assert "<script>" not in cleaned
-    assert "<style>" not in cleaned
-    assert "<nav>" not in cleaned
-    assert "<footer>" not in cleaned
-    assert "Secret comment" not in cleaned
+import httpx
+
+from app.services.news_crawler import CrawledNews, crawl_news_url
+from app.services.url_extraction.extractors import ContentCandidate
+from app.services.url_extraction.metadata import PageMetadata
+from app.services.url_extraction.ranker import RankedCandidate
+
 
 @patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
-@patch("app.services.news_crawler.httpx.Client")
-def test_crawl_news_url_success(mock_httpx_client, _mock_validate_url):
-    # Mock HTTP response for website content
-    mock_resp_web = MagicMock()
-    mock_resp_web.text = "<html><body><h1>News</h1><p>Content</p></body></html>"
-    mock_resp_web.status_code = 200
-    mock_resp_web.raise_for_status = MagicMock()
+@patch("app.services.news_crawler.fetch_page")
+@patch("app.services.news_crawler.extract_metadata")
+@patch("app.services.news_crawler.extract_with_readability")
+@patch("app.services.news_crawler.extract_with_trafilatura")
+@patch("app.services.news_crawler.rank_candidates")
+def test_crawl_news_url_prefers_ranked_candidate(
+    mock_rank,
+    mock_trafilatura,
+    mock_readability,
+    mock_metadata,
+    mock_fetch,
+    _mock_validate_url,
+):
+    mock_fetch.return_value = (
+        "https://example.com/news",
+        "<html><body><article><p>正文</p></article></body></html>",
+    )
+    mock_metadata.return_value = PageMetadata(
+        title="排名后的标题",
+        publish_date="2026-03-22",
+        site_name="示例站点",
+        canonical_url="https://example.com/news",
+        meta_debug={},
+    )
+    mock_readability.return_value = ContentCandidate(
+        extractor_name="readability",
+        title="候选标题",
+        content="这是最终正文。\n\n第二段。",
+        text_len=13,
+        paragraph_count=2,
+        link_density=0.1,
+        chinese_ratio=0.8,
+        noise_hits=[],
+    )
+    mock_trafilatura.return_value = ContentCandidate(
+        extractor_name="trafilatura",
+        title="备用标题",
+        content="较差正文",
+        text_len=4,
+        paragraph_count=1,
+        link_density=0.6,
+        chinese_ratio=0.8,
+        noise_hits=["相关阅读"],
+    )
+    mock_rank.return_value = RankedCandidate(
+        best=mock_readability.return_value,
+        confidence="medium",
+        score=2.1,
+        fallback_needed=False,
+        reasons=["正文长度偏短但可判定"],
+    )
 
-    # Mock HTTP response for LLM API
-    mock_resp_llm = MagicMock()
-    mock_resp_llm.json.return_value = {
-        "choices": [
-            {
-                "message": {
-                    "content": '{"title": "News Title", "content": "News Body", "publish_date": "2024-02-24"}'
-                }
-            }
-        ]
-    }
-    mock_resp_llm.status_code = 200
-    mock_resp_llm.raise_for_status = MagicMock()
-
-    mock_client_instance = MagicMock()
-    # First call is GET (website), second is POST (LLM)
-    mock_client_instance.get.return_value = mock_resp_web
-    mock_client_instance.post.return_value = mock_resp_llm
-    mock_client_instance.__enter__.return_value = mock_client_instance
-    mock_httpx_client.return_value = mock_client_instance
-
-    url = "https://example.com/news"
-    # Ensure API Key is present for test
-    with patch.dict("os.environ", {"TRUTHCAST_LLM_API_KEY": "test-key"}):
-        result = crawl_news_url(url)
+    result = crawl_news_url("https://example.com/news")
 
     assert result.success is True
-    assert result.title == "News Title"
-    assert result.content == "News Body"
-    assert result.publish_date == "2024-02-24"
-    assert result.source_url == url
+    assert result.title == "排名后的标题"
+    assert "最终正文" in result.content
+    assert result.publish_date == "2026-03-22"
+
 
 @patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
-@patch("app.services.news_crawler.httpx.Client")
-def test_crawl_news_url_http_error(mock_httpx_client, _mock_validate_url):
-    mock_client_instance = MagicMock()
-    mock_client_instance.get.side_effect = httpx.HTTPStatusError("404 Not Found", request=MagicMock(), response=MagicMock())
-    mock_client_instance.__enter__.return_value = mock_client_instance
-    mock_httpx_client.return_value = mock_client_instance
-    
-    url = "https://example.com/404"
-    result = crawl_news_url(url)
-    
+@patch("app.services.news_crawler.fetch_page")
+def test_crawl_news_url_http_error(mock_fetch, _mock_validate_url):
+    mock_fetch.side_effect = httpx.HTTPStatusError(
+        "404 Not Found",
+        request=MagicMock(),
+        response=MagicMock(),
+    )
+
+    result = crawl_news_url("https://example.com/404")
+
     assert result.success is False
     assert "404" in result.error_msg
-    assert result.source_url == url
+    assert result.source_url == "https://example.com/404"
+
 
 @patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
-@patch("app.services.news_crawler.httpx.Client")
-def test_crawl_news_url_llm_error(mock_httpx_client, _mock_validate_url):
-    # Mock HTTP success for web
-    mock_resp_web = MagicMock()
-    mock_resp_web.text = "<html><body>Some News</body></html>"
-    mock_resp_web.status_code = 200
+@patch("app.services.news_crawler.fetch_page")
+@patch("app.services.news_crawler.extract_metadata")
+@patch("app.services.news_crawler.extract_with_readability")
+@patch("app.services.news_crawler.extract_with_trafilatura")
+@patch("app.services.news_crawler.rank_candidates")
+def test_crawl_news_url_returns_failed_when_no_candidate(
+    mock_rank,
+    mock_trafilatura,
+    mock_readability,
+    mock_metadata,
+    mock_fetch,
+    _mock_validate_url,
+):
+    mock_fetch.return_value = ("https://example.com/empty", "<html><body>empty</body></html>")
+    mock_metadata.return_value = PageMetadata(
+        title="标题",
+        publish_date="",
+        site_name="",
+        canonical_url="https://example.com/empty",
+        meta_debug={},
+    )
+    mock_readability.return_value = None
+    mock_trafilatura.return_value = None
+    mock_rank.return_value = RankedCandidate(
+        best=None,
+        confidence="low",
+        score=0.0,
+        fallback_needed=True,
+        reasons=["无可用候选"],
+    )
 
-    mock_client_instance = MagicMock()
-    mock_client_instance.get.return_value = mock_resp_web
-    # Mock LLM failure
-    mock_client_instance.post.side_effect = Exception("LLM connection failed")
-    mock_client_instance.__enter__.return_value = mock_client_instance
-    mock_httpx_client.return_value = mock_client_instance
-
-    url = "https://example.com/news"
-    with patch.dict("os.environ", {"TRUTHCAST_LLM_API_KEY": "test-key"}):
-        result = crawl_news_url(url)
+    result = crawl_news_url("https://example.com/empty")
 
     assert result.success is False
-    assert "LLM extraction failed" in result.error_msg
     assert result.content == "[提取失败]"
+    assert "无可用候选" in result.error_msg
 
 
 @patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
-@patch("app.services.news_crawler.httpx.Client")
-def test_crawl_news_url_logs_fetch_summary(mock_httpx_client, _mock_validate_url):
-    mock_resp_web = MagicMock()
-    mock_resp_web.text = "<html><body><h1>News</h1><p>Content</p></body></html>"
-    mock_resp_web.status_code = 200
-    mock_resp_web.raise_for_status = MagicMock()
+@patch("app.services.news_crawler.fetch_page")
+@patch("app.services.news_crawler.extract_metadata")
+@patch("app.services.news_crawler.extract_with_readability")
+@patch("app.services.news_crawler.extract_with_trafilatura")
+@patch("app.services.news_crawler.rank_candidates")
+def test_crawl_news_url_logs_fetch_summary(
+    mock_rank,
+    mock_trafilatura,
+    mock_readability,
+    mock_metadata,
+    mock_fetch,
+    _mock_validate_url,
+):
+    mock_fetch.return_value = ("https://example.com/news", "<html><body><article>正文</article></body></html>")
+    mock_metadata.return_value = PageMetadata(
+        title="日志标题",
+        publish_date="2026-03-22",
+        site_name="站点",
+        canonical_url="https://example.com/news",
+        meta_debug={},
+    )
+    mock_readability.return_value = ContentCandidate(
+        extractor_name="readability",
+        title="日志标题",
+        content="正文第一段。\n\n正文第二段。",
+        text_len=13,
+        paragraph_count=2,
+        link_density=0.1,
+        chinese_ratio=0.8,
+        noise_hits=[],
+    )
+    mock_trafilatura.return_value = None
+    mock_rank.return_value = RankedCandidate(
+        best=mock_readability.return_value,
+        confidence="medium",
+        score=2.0,
+        fallback_needed=False,
+        reasons=["具备基本段落结构"],
+    )
 
-    mock_resp_llm = MagicMock()
-    mock_resp_llm.json.return_value = {
-        "choices": [
-            {
-                "message": {
-                    "content": '{"title": "News Title", "content": "News Body", "publish_date": "2024-02-24"}'
-                }
-            }
-        ]
-    }
-    mock_resp_llm.status_code = 200
-    mock_resp_llm.raise_for_status = MagicMock()
-
-    mock_client_instance = MagicMock()
-    mock_client_instance.get.return_value = mock_resp_web
-    mock_client_instance.post.return_value = mock_resp_llm
-    mock_client_instance.__enter__.return_value = mock_client_instance
-    mock_httpx_client.return_value = mock_client_instance
-
-    url = "https://example.com/news"
-    with patch.dict("os.environ", {"TRUTHCAST_LLM_API_KEY": "test-key"}):
-        with patch("app.services.news_crawler.logger.info") as mock_info:
-            result = crawl_news_url(url)
+    with patch("app.services.news_crawler.logger.info") as mock_info:
+        result = crawl_news_url("https://example.com/news")
 
     assert result.success is True
     logged = " | ".join(str(call) for call in mock_info.call_args_list)
     assert "开始抓取新闻链接" in logged
     assert "HTTP获取成功" in logged
-    assert "提取成功" in logged
-
-
-@patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
-@patch("app.services.news_crawler.httpx.Client")
-def test_crawl_news_url_retries_llm_timeout_then_succeeds(mock_httpx_client, _mock_validate_url):
-    mock_resp_web = MagicMock()
-    mock_resp_web.text = "<html><body><h1>News</h1><p>Content</p></body></html>"
-    mock_resp_web.status_code = 200
-    mock_resp_web.raise_for_status = MagicMock()
-
-    mock_resp_llm = MagicMock()
-    mock_resp_llm.json.return_value = {
-        "choices": [
-            {
-                "message": {
-                    "content": '{"title": "Retry Title", "content": "Retry Body", "publish_date": "2024-02-24"}'
-                }
-            }
-        ]
-    }
-    mock_resp_llm.status_code = 200
-    mock_resp_llm.raise_for_status = MagicMock()
-
-    mock_client_instance = MagicMock()
-    mock_client_instance.get.return_value = mock_resp_web
-    mock_client_instance.post.side_effect = [httpx.ReadTimeout("The read operation timed out"), mock_resp_llm]
-    mock_client_instance.__enter__.return_value = mock_client_instance
-    mock_httpx_client.return_value = mock_client_instance
-
-    url = "https://example.com/retry-news"
-    env = {
-        "TRUTHCAST_LLM_API_KEY": "test-key",
-        "TRUTHCAST_CRAWLER_LLM_MAX_RETRIES": "2",
-        "TRUTHCAST_CRAWLER_LLM_RETRY_DELAY_SEC": "0",
-    }
-    with patch.dict("os.environ", env):
-        result = crawl_news_url(url)
-
-    assert result.success is True
-    assert result.title == "Retry Title"
-    assert mock_client_instance.post.call_count == 2
-
-
-@patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
-@patch("app.services.news_crawler.httpx.Client")
-def test_crawl_news_url_uses_configured_llm_timeout(mock_httpx_client, _mock_validate_url):
-    mock_resp_web = MagicMock()
-    mock_resp_web.text = "<html><body><h1>News</h1><p>Content</p></body></html>"
-    mock_resp_web.status_code = 200
-    mock_resp_web.raise_for_status = MagicMock()
-
-    mock_resp_llm = MagicMock()
-    mock_resp_llm.json.return_value = {
-        "choices": [
-            {
-                "message": {
-                    "content": '{"title": "Timed Title", "content": "Timed Body", "publish_date": "2024-02-24"}'
-                }
-            }
-        ]
-    }
-    mock_resp_llm.status_code = 200
-    mock_resp_llm.raise_for_status = MagicMock()
-
-    mock_client_instance = MagicMock()
-    mock_client_instance.get.return_value = mock_resp_web
-    mock_client_instance.post.return_value = mock_resp_llm
-    mock_client_instance.__enter__.return_value = mock_client_instance
-    mock_httpx_client.return_value = mock_client_instance
-
-    url = "https://example.com/timed-news"
-    env = {
-        "TRUTHCAST_LLM_API_KEY": "test-key",
-        "TRUTHCAST_CRAWLER_LLM_TIMEOUT_SEC": "45",
-        "TRUTHCAST_CRAWLER_LLM_READ_TIMEOUT_SEC": "50",
-    }
-    with patch.dict("os.environ", env):
-        result = crawl_news_url(url)
-
-    assert result.success is True
-    _, kwargs = mock_httpx_client.call_args
-    timeout = kwargs["timeout"]
-    assert isinstance(timeout, httpx.Timeout)
-    assert timeout.connect == 45
-    assert timeout.read == 50
+    assert "metadata提取完成" in logged
+    assert "候选正文打分完成" in logged
