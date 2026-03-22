@@ -400,6 +400,7 @@ export type MonitorWindowItem = {
   hot_item_id?: string | null;
   analysis_result_id?: string | null;
   duplicate_of_analysis_result_id?: string | null;
+  analysis_status: 'pending' | 'running' | 'done' | 'failed';
   dedupe_key: string;
   title: string;
   url: string;

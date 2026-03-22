@@ -1,6 +1,6 @@
 defaults:
   scan_interval_minutes: 60
-  fetch_top_n: 3
+  fetch_top_n: 5
   risk_snapshot_threshold: 40
   report_threshold_for_simulation: 50
 

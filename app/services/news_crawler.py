@@ -26,6 +26,7 @@ def crawl_news_url(url: str, timeout_sec: float = 15.0) -> CrawledNews:
     抓取新闻 URL 并提取核心内容 (标题, 正文, 发布日期)
     """
     try:
+        logger.info("新闻抓取：开始抓取新闻链接 url=%s", url)
         # SSRF 防护：验证 URL 不指向内部/私有地址
         from app.core.security import SSRFBlockedError, validate_url_for_ssrf
 
@@ -51,9 +52,20 @@ def crawl_news_url(url: str, timeout_sec: float = 15.0) -> CrawledNews:
             resp = client.get(url)
             resp.raise_for_status()
             html = resp.text
+        logger.info(
+            "新闻抓取：HTTP获取成功 url=%s status=%s html_len=%s",
+            url,
+            getattr(resp, "status_code", "unknown"),
+            len(html),
+        )
 
         # 1. 简单清洗 HTML 减少 token 消耗
         cleaned_html = _preprocess_html(html)
+        logger.info(
+            "新闻抓取：HTML预处理完成 url=%s cleaned_len=%s",
+            url,
+            len(cleaned_html),
+        )
 
         # 2. 调用 LLM 进行结构化提取
         return _extract_news_with_llm(url, cleaned_html)
@@ -132,6 +144,7 @@ def _extract_news_with_llm(url: str, html: str) -> CrawledNews:
     }
 
     try:
+        logger.info("新闻抓取：开始LLM提取 url=%s html_len=%s model=%s", url, len(html), model)
         with httpx.Client(timeout=30.0) as client:
             resp = client.post(
                 f"{base_url}/chat/completions",
@@ -146,11 +159,21 @@ def _extract_news_with_llm(url: str, html: str) -> CrawledNews:
             raw_content = data["choices"][0]["message"]["content"]
 
         res_data = safe_json_loads(raw_content)
+        title = str(res_data.get("title", "")).strip()
+        content = str(res_data.get("content", "")).strip()
+        publish_date = str(res_data.get("publish_date", "")).strip()
+        logger.info(
+            "新闻抓取：提取成功 url=%s title=%s content_len=%s publish_date=%s",
+            url,
+            title[:80],
+            len(content),
+            publish_date or "",
+        )
 
         return CrawledNews(
-            title=str(res_data.get("title", "")).strip(),
-            content=str(res_data.get("content", "")).strip(),
-            publish_date=str(res_data.get("publish_date", "")).strip(),
+            title=title,
+            content=content,
+            publish_date=publish_date,
             source_url=url,
             success=True,
         )

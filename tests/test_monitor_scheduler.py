@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+import asyncio
 
 import pytest
 
@@ -201,6 +201,8 @@ async def test_scheduler_dispatches_pipeline_runner_after_scan() -> None:
     )
 
     await scheduler.scan_all_platforms()
+    if scheduler._background_analysis_tasks:
+        await asyncio.gather(*scheduler._background_analysis_tasks)
 
     assert captured == [("thepaper_1", "thepaper")]
 
@@ -271,8 +273,16 @@ async def test_scheduler_creates_hourly_window_and_window_items(tmp_path, monkey
     assert details[0].window.window_start.isoformat() == "2026-03-21T16:00:00+00:00"
     assert details[0].window.window_end.isoformat() == "2026-03-21T17:00:00+00:00"
     assert details[0].window.fetched_count == 1
-    assert details[0].window.analyzed_count == 1
     assert len(details[0].items) == 1
+    assert details[0].items[0].analysis_status == "pending"
+    assert details[0].items[0].analysis_result_id is None
+
+    if scheduler._background_analysis_tasks:
+        await asyncio.gather(*scheduler._background_analysis_tasks)
+
+    details = list_monitor_scan_window_details(limit=5)
+    assert details[0].window.analyzed_count == 1
+    assert details[0].items[0].analysis_status == "done"
     assert details[0].items[0].analysis_result_id == "analysis_window_1"
 
 

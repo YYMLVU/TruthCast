@@ -22,6 +22,7 @@ from app.services.monitor.store import (
     save_monitor_window_item,
     update_monitor_scan_window_counters,
     update_monitor_window_item_analysis_result,
+    update_monitor_window_item_analysis_status,
 )
 
 
@@ -121,8 +122,11 @@ class MonitorScheduler:
         }
         self._active_window = window
         self._active_metrics = metrics
+        pending_by_platform: dict[str, list[tuple[object, MonitorPlatformConfig, str]]] = {}
         for platform, items in all_items.items():
-            await self.process_platform(platform, items)
+            pending_items = await self.process_platform(platform, items)
+            if pending_items:
+                pending_by_platform[platform] = pending_items
         create_monitor_scan_window(
             window.model_copy(
                 update={
@@ -138,16 +142,25 @@ class MonitorScheduler:
         self._active_window = None
         self._active_metrics = None
         self.last_scan_duration_ms = int((perf_counter() - started_at) * 1000)
+        if pending_by_platform:
+            task = asyncio.create_task(
+                self._run_background_analysis(window.id, pending_by_platform),
+                name=f"truthcast-monitor-scheduled-analysis-{window.id}",
+            )
+            self._background_analysis_tasks.add(task)
+            task.add_done_callback(self._background_analysis_tasks.discard)
 
-    async def process_platform(self, platform: str, items: list):
+    async def process_platform(self, platform: str, items: list) -> list[tuple[object, MonitorPlatformConfig, str]]:
         started_at = perf_counter()
         config = None
         window = self._active_window
         metrics = self._active_metrics
+        pending: list[tuple[object, MonitorPlatformConfig, str]] = []
         try:
             delta = await self.hot_items.detect_incremental(items, platform)
             await self.hot_items.save(items)
             candidates = delta.get("new", []) + delta.get("updated", [])
+            candidate_ids = {item.id for item in candidates}
             if candidates:
                 await self.alert_engine.check_and_alert(candidates, platform)
                 if self.pipeline_runner is not None:
@@ -172,7 +185,7 @@ class MonitorScheduler:
             if metrics is not None:
                 metrics["fetched_count"] += len(items)
             if window is not None:
-                await self._record_window_items(window, platform, items, config, metrics)
+                pending = await self._record_window_items(window, platform, items, config, metrics, candidate_ids)
             self.last_scan_summary[platform] = {
                 "fetched": len(items),
                 "new": len(delta.get("new", [])),
@@ -201,6 +214,7 @@ class MonitorScheduler:
                 await self.adjust_schedule(platform, [])
         finally:
             self.platform_durations_ms[platform] = int((perf_counter() - started_at) * 1000)
+        return pending
 
     def _platform_config_for(self, platform: str) -> MonitorPlatformConfig:
         config = next(
@@ -266,7 +280,7 @@ class MonitorScheduler:
         analysis_scheduled = resolved_auto_analyze and any(pending_by_platform.values())
         if analysis_scheduled:
             task = asyncio.create_task(
-                self._run_manual_analysis(window.id, pending_by_platform),
+                self._run_background_analysis(window.id, pending_by_platform),
                 name=f"truthcast-monitor-manual-analysis-{window.id}",
             )
             self._background_analysis_tasks.add(task)
@@ -374,7 +388,7 @@ class MonitorScheduler:
             self.platform_durations_ms[platform] = int((perf_counter() - started_at) * 1000)
         return pending
 
-    async def _run_manual_analysis(
+    async def _run_background_analysis(
         self,
         window_id: str,
         pending_by_platform: dict[str, list[tuple[object, MonitorPlatformConfig, str]]],
@@ -393,27 +407,47 @@ class MonitorScheduler:
                         window_id=window_id,
                         dedupe_key=dedupe_key,
                         analysis_result_id=existing_analysis.id,
+                        analysis_status="done",
                         is_duplicate_across_windows=True,
                         duplicate_of_analysis_result_id=existing_analysis.id,
                     )
                     continue
                 if self.pipeline_runner is None:
                     continue
+                update_monitor_window_item_analysis_status(
+                    window_id=window_id,
+                    dedupe_key=dedupe_key,
+                    analysis_status="running",
+                )
                 try:
-                    analysis_result = self.pipeline_runner.process_hot_item(
+                    analysis_result = await asyncio.to_thread(
+                        self.pipeline_runner.process_hot_item,
                         item,
                         config,
                         dedupe_key=dedupe_key,
                     )
                 except TypeError:
-                    analysis_result = self.pipeline_runner.process_hot_item(item, config)
+                    analysis_result = await asyncio.to_thread(self.pipeline_runner.process_hot_item, item, config)
+                except Exception:  # noqa: BLE001
+                    update_monitor_window_item_analysis_status(
+                        window_id=window_id,
+                        dedupe_key=dedupe_key,
+                        analysis_status="failed",
+                    )
+                    continue
                 if analysis_result is None:
+                    update_monitor_window_item_analysis_status(
+                        window_id=window_id,
+                        dedupe_key=dedupe_key,
+                        analysis_status="pending",
+                    )
                     continue
                 analyzed_increment += 1
                 update_monitor_window_item_analysis_result(
                     window_id=window_id,
                     dedupe_key=dedupe_key,
                     analysis_result_id=analysis_result.id,
+                    analysis_status="done",
                 )
         if analyzed_increment or duplicate_increment:
             update_monitor_scan_window_counters(
@@ -422,8 +456,9 @@ class MonitorScheduler:
                 duplicate_increment=duplicate_increment,
             )
 
-    async def _record_window_items(self, window, platform: str, items: list, config, metrics) -> None:
+    async def _record_window_items(self, window, platform: str, items: list, config, metrics, candidate_ids: set[str]) -> list[tuple[object, MonitorPlatformConfig, str]]:
         seen_keys = metrics["seen_keys"] if metrics is not None else set()
+        pending: list[tuple[object, MonitorPlatformConfig, str]] = []
         for item in items:
             dedupe_key = build_monitor_dedupe_key(platform, getattr(item, "title", ""), getattr(item, "url", ""))
             if dedupe_key in seen_keys:
@@ -433,19 +468,18 @@ class MonitorScheduler:
                 metrics["deduplicated_count"] += 1
 
             existing_analysis = find_monitor_analysis_result_by_dedupe_key(dedupe_key)
-            analysis_result = None
             is_duplicate = existing_analysis is not None
+            analysis_status = "pending"
             if existing_analysis is not None:
                 if metrics is not None:
                     metrics["duplicate_count"] += 1
-                analysis_result = existing_analysis
-            elif self.pipeline_runner is not None and config is not None:
-                try:
-                    analysis_result = self.pipeline_runner.process_hot_item(item, config, dedupe_key=dedupe_key)
-                except TypeError:
-                    analysis_result = self.pipeline_runner.process_hot_item(item, config)
-                if metrics is not None:
-                    metrics["analyzed_count"] += 1
+                analysis_status = "done"
+            elif (
+                self.pipeline_runner is not None
+                and config is not None
+                and getattr(item, "id", None) in candidate_ids
+            ):
+                pending.append((item, config, dedupe_key))
 
             save_monitor_window_item(
                 MonitorWindowItem(
@@ -453,8 +487,9 @@ class MonitorScheduler:
                     window_id=window.id,
                     platform=platform,
                     hot_item_id=getattr(item, "id", None),
-                    analysis_result_id=analysis_result.id if analysis_result is not None else None,
+                    analysis_result_id=existing_analysis.id if existing_analysis is not None else None,
                     duplicate_of_analysis_result_id=existing_analysis.id if existing_analysis is not None else None,
+                    analysis_status=analysis_status,
                     dedupe_key=dedupe_key,
                     title=getattr(item, "title", ""),
                     url=getattr(item, "url", ""),
@@ -464,6 +499,7 @@ class MonitorScheduler:
                     is_duplicate_across_windows=is_duplicate,
                 )
             )
+        return pending
 
     async def adjust_schedule(self, platform: str, items: list):
         base_interval = self.platform_base_intervals.get(platform, self.default_interval)

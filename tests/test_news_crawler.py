@@ -104,3 +104,41 @@ def test_crawl_news_url_llm_error(mock_httpx_client):
     assert result.success is False
     assert "LLM extraction failed" in result.error_msg
     assert result.content == "[提取失败]"
+
+
+@patch("app.services.news_crawler.httpx.Client")
+def test_crawl_news_url_logs_fetch_summary(mock_httpx_client):
+    mock_resp_web = MagicMock()
+    mock_resp_web.text = "<html><body><h1>News</h1><p>Content</p></body></html>"
+    mock_resp_web.status_code = 200
+    mock_resp_web.raise_for_status = MagicMock()
+
+    mock_resp_llm = MagicMock()
+    mock_resp_llm.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": '{"title": "News Title", "content": "News Body", "publish_date": "2024-02-24"}'
+                }
+            }
+        ]
+    }
+    mock_resp_llm.status_code = 200
+    mock_resp_llm.raise_for_status = MagicMock()
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.get.return_value = mock_resp_web
+    mock_client_instance.post.return_value = mock_resp_llm
+    mock_client_instance.__enter__.return_value = mock_client_instance
+    mock_httpx_client.return_value = mock_client_instance
+
+    url = "https://example.com/news"
+    with patch.dict("os.environ", {"TRUTHCAST_LLM_API_KEY": "test-key"}):
+        with patch("app.services.news_crawler.logger.info") as mock_info:
+            result = crawl_news_url(url)
+
+    assert result.success is True
+    logged = " | ".join(str(call) for call in mock_info.call_args_list)
+    assert "开始抓取新闻链接" in logged
+    assert "HTTP获取成功" in logged
+    assert "提取成功" in logged

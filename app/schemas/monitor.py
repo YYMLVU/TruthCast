@@ -241,6 +241,7 @@ class MonitorWindowItem(BaseModel):
     hot_item_id: str | None = None
     analysis_result_id: str | None = None
     duplicate_of_analysis_result_id: str | None = None
+    analysis_status: str = "pending"
     dedupe_key: str
     title: str
     url: str

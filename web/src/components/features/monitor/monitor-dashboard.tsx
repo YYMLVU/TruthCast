@@ -53,6 +53,23 @@ function simulationTone(status: string) {
   return 'border-amber-200 bg-amber-500/10 text-amber-700';
 }
 
+function analysisStatusLabel(status: string) {
+  const map: Record<string, string> = {
+    pending: '未检测',
+    running: '检测中',
+    done: '检测完成',
+    failed: '检测失败',
+  };
+  return map[status] ?? status;
+}
+
+function analysisStatusTone(status: string) {
+  if (status === 'done') return 'border-emerald-200 bg-emerald-500/10 text-emerald-700';
+  if (status === 'running') return 'border-sky-200 bg-sky-500/10 text-sky-700';
+  if (status === 'failed') return 'border-rose-200 bg-rose-500/10 text-rose-700';
+  return 'border-slate-200 bg-slate-500/10 text-slate-700';
+}
+
 function formatWindowRange(start: string, end: string) {
   const startDate = new Date(start);
   const endDate = new Date(end);
@@ -115,8 +132,8 @@ function WindowNewsCard({
                 {analysisStageLabel(analysis.current_stage)}
               </Badge>
             ) : (
-              <Badge variant="outline" className="border-slate-200 bg-slate-500/10 text-slate-700">
-                待进入检测
+              <Badge variant="outline" className={cn('border', analysisStatusTone(item.analysis_status))}>
+                {analysisStatusLabel(item.analysis_status)}
               </Badge>
             )}
             {analysis?.risk_snapshot_score != null ? (
@@ -170,7 +187,9 @@ function WindowNewsCard({
             </div>
             <div className="rounded-2xl bg-[color:var(--panel-soft)]/72 px-3 py-3 text-sm">
               <div className="text-xs uppercase tracking-[0.16em] text-[color:var(--muted-strong)]">链接核查</div>
-              <div className="mt-1 font-medium text-foreground">{analysis?.crawl_status ?? 'pending'}</div>
+              <div className="mt-1 font-medium text-foreground">
+                {analysis?.crawl_status ?? analysisStatusLabel(item.analysis_status)}
+              </div>
             </div>
           </div>
 

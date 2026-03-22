@@ -194,6 +194,7 @@ def _create_tables(db_path: Path) -> None:
                 hot_item_id TEXT,
                 analysis_result_id TEXT,
                 duplicate_of_analysis_result_id TEXT,
+                analysis_status TEXT NOT NULL DEFAULT 'pending',
                 dedupe_key TEXT NOT NULL,
                 title TEXT NOT NULL,
                 url TEXT NOT NULL,
@@ -206,6 +207,7 @@ def _create_tables(db_path: Path) -> None:
             """
         )
         _deduplicate_monitor_window_items(conn)
+        _ensure_monitor_window_item_columns(conn)
         conn.execute(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS idx_monitor_window_items_window_dedupe
@@ -245,6 +247,20 @@ def _ensure_monitor_analysis_result_columns(conn: sqlite3.Connection) -> None:
             continue
         conn.execute(
             f"ALTER TABLE monitor_analysis_results ADD COLUMN {name} {definition}"
+        )
+
+
+def _ensure_monitor_window_item_columns(conn: sqlite3.Connection) -> None:
+    rows = conn.execute("PRAGMA table_info(monitor_window_items)").fetchall()
+    columns = {row[1] for row in rows}
+    column_defs = {
+        "analysis_status": "TEXT NOT NULL DEFAULT 'pending'",
+    }
+    for name, definition in column_defs.items():
+        if name in columns:
+            continue
+        conn.execute(
+            f"ALTER TABLE monitor_window_items ADD COLUMN {name} {definition}"
         )
 
 
@@ -465,6 +481,7 @@ def _row_to_monitor_window_item(row: sqlite3.Row | None) -> MonitorWindowItem | 
         hot_item_id=row["hot_item_id"],
         analysis_result_id=row["analysis_result_id"],
         duplicate_of_analysis_result_id=row["duplicate_of_analysis_result_id"],
+        analysis_status=row["analysis_status"] or "pending",
         dedupe_key=row["dedupe_key"],
         title=row["title"],
         url=row["url"],
@@ -566,13 +583,14 @@ def save_monitor_window_item(item: MonitorWindowItem) -> MonitorWindowItem:
             """
             INSERT INTO monitor_window_items (
                 id, window_id, platform, hot_item_id, analysis_result_id, duplicate_of_analysis_result_id,
-                dedupe_key, title, url, hot_value, rank, trend, is_duplicate_across_windows, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                analysis_status, dedupe_key, title, url, hot_value, rank, trend, is_duplicate_across_windows, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(window_id, dedupe_key) DO UPDATE SET
                 platform = excluded.platform,
                 hot_item_id = excluded.hot_item_id,
                 analysis_result_id = excluded.analysis_result_id,
                 duplicate_of_analysis_result_id = excluded.duplicate_of_analysis_result_id,
+                analysis_status = excluded.analysis_status,
                 title = excluded.title,
                 url = excluded.url,
                 hot_value = excluded.hot_value,
@@ -588,6 +606,7 @@ def save_monitor_window_item(item: MonitorWindowItem) -> MonitorWindowItem:
                 item.hot_item_id,
                 item.analysis_result_id,
                 item.duplicate_of_analysis_result_id,
+                item.analysis_status,
                 item.dedupe_key,
                 item.title,
                 item.url,
@@ -633,6 +652,7 @@ def update_monitor_window_item_analysis_result(
     window_id: str,
     dedupe_key: str,
     analysis_result_id: str,
+    analysis_status: str = "done",
     is_duplicate_across_windows: bool = False,
     duplicate_of_analysis_result_id: str | None = None,
 ) -> int:
@@ -641,14 +661,39 @@ def update_monitor_window_item_analysis_result(
             """
             UPDATE monitor_window_items
             SET analysis_result_id = ?,
+                analysis_status = ?,
                 is_duplicate_across_windows = ?,
                 duplicate_of_analysis_result_id = COALESCE(?, duplicate_of_analysis_result_id)
             WHERE window_id = ? AND dedupe_key = ?
             """,
             (
                 analysis_result_id,
+                analysis_status,
                 int(is_duplicate_across_windows),
                 duplicate_of_analysis_result_id,
+                window_id,
+                dedupe_key,
+            ),
+        )
+        conn.commit()
+    return result.rowcount
+
+
+def update_monitor_window_item_analysis_status(
+    *,
+    window_id: str,
+    dedupe_key: str,
+    analysis_status: str,
+) -> int:
+    with monitor_connection() as conn:
+        result = conn.execute(
+            """
+            UPDATE monitor_window_items
+            SET analysis_status = ?
+            WHERE window_id = ? AND dedupe_key = ?
+            """,
+            (
+                analysis_status,
                 window_id,
                 dedupe_key,
             ),
