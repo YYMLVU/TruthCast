@@ -43,6 +43,7 @@ def _monitor_enabled() -> bool:
 monitor_scheduler = MonitorScheduler(
     hot_items_service=routes_monitor.hot_items_service,
     alert_engine=routes_monitor.alert_engine,
+    pipeline_runner=routes_monitor.pipeline_runner,
     platform_base_intervals=routes_monitor.hot_items_service.platform_intervals,
 )
 

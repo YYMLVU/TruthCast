@@ -23,13 +23,13 @@ import {
 } from '@/components/ui/sheet';
 
 const navItems = [
-  { href: '/chat', label: '对话工作台', icon: MessageSquare },
+  { href: '/monitor', label: '监测台', icon: RadioTower },
   { href: '/', label: '任务输入', icon: Home },
   { href: '/result', label: '检测结果', icon: FileSearch },
   { href: '/simulation', label: '舆情预演', icon: LineChart },
   { href: '/content', label: '应对内容', icon: FileText },
   { href: '/history', label: '历史记录', icon: History },
-  { href: '/monitor', label: '监测台', icon: RadioTower },
+  { href: '/chat', label: '对话工作台', icon: MessageSquare },
 ];
 
 export function Header() {

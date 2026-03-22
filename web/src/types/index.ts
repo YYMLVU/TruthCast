@@ -315,6 +315,8 @@ export type MonitorAlert = {
 export type MonitorStatus = {
   running: boolean;
   adaptive_mode: boolean;
+  manual_scan_auto_analyze_default: boolean;
+  enabled_platforms: Array<{ key: string; display_name: string }>;
   default_interval_minutes: number | null;
   effective_interval_minutes: number | null;
   platform_intervals: Record<string, number>;
@@ -325,6 +327,93 @@ export type MonitorStatus = {
   last_error?: { platform: string; message: string; at: string } | null;
   last_scan_duration_ms?: number | null;
   platform_durations_ms: Record<string, number>;
+};
+
+export type MonitorScanResponse = {
+  scanned_platforms: string[];
+  saved_count: number;
+  total_fetched: number;
+  window_id?: string | null;
+  auto_analyze: boolean;
+  analysis_scheduled: boolean;
+};
+
+export type MonitorAnalysisStage =
+  | 'hot_item'
+  | 'crawl'
+  | 'risk_snapshot'
+  | 'report'
+  | 'simulation'
+  | 'content'
+  | 'completed';
+
+export type MonitorAnalysisResult = {
+  id: string;
+  hot_item_id: string;
+  platform: string;
+  source_url: string;
+  crawl_status: string;
+  crawl_title?: string | null;
+  crawl_content?: string | null;
+  crawl_publish_date?: string | null;
+  risk_snapshot_score?: number | null;
+  risk_snapshot_label?: string | null;
+  risk_snapshot_reasons: string[];
+  raw_evidences: EvidenceItem[];
+  evidences: EvidenceItem[];
+  current_stage: MonitorAnalysisStage;
+  report_score?: number | null;
+  report_level?: string | null;
+  report_data?: ReportResponse | null;
+  simulation_status: string;
+  simulation_data?: SimulateResponse | null;
+  content_generation_status: string;
+  content_data?: ContentDraft | null;
+  last_error?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MonitorScanTriggerType = 'scheduled' | 'manual';
+export type MonitorScanWindowStatus = 'running' | 'completed' | 'failed';
+
+export type MonitorScanWindow = {
+  id: string;
+  window_start: string;
+  window_end: string;
+  trigger_type: MonitorScanTriggerType;
+  status: MonitorScanWindowStatus;
+  platforms: string[];
+  fetched_count: number;
+  deduplicated_count: number;
+  analyzed_count: number;
+  duplicate_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MonitorWindowItem = {
+  id: string;
+  window_id: string;
+  platform: string;
+  platform_display_name?: string | null;
+  hot_item_id?: string | null;
+  analysis_result_id?: string | null;
+  duplicate_of_analysis_result_id?: string | null;
+  dedupe_key: string;
+  title: string;
+  url: string;
+  hot_value: number;
+  rank: number;
+  trend: MonitorTrendDirection;
+  is_duplicate_across_windows: boolean;
+  created_at: string;
+  analysis_result?: MonitorAnalysisResult | null;
+};
+
+export type MonitorScanWindowDetail = {
+  window: MonitorScanWindow;
+  items: MonitorWindowItem[];
 };
 
 export type Phase = 'detect' | 'claims' | 'evidence' | 'report' | 'simulation' | 'content';

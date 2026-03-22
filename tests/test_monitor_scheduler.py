@@ -8,7 +8,7 @@ from app.schemas.monitor import HotItem, TrendDirection
 
 
 @pytest.mark.anyio
-async def test_monitor_scheduler_trigger_manual_scan_processes_platforms(monkeypatch) -> None:
+async def test_monitor_scheduler_trigger_manual_scan_returns_window_scan_result(monkeypatch) -> None:
     from app.services.monitor.scheduler import MonitorScheduler
 
     class _HotItems:
@@ -25,20 +25,21 @@ async def test_monitor_scheduler_trigger_manual_scan_processes_platforms(monkeyp
                 )
             ]
 
-    processed: list[tuple[str, list[str]]] = []
+        async def detect_incremental(self, items, platform):
+            return {"new": items, "updated": [], "removed": []}
 
-    class _Scheduler(MonitorScheduler):
-        async def process_platform(self, platform: str, items: list[HotItem]):
-            processed.append((platform, [item.id for item in items]))
+        async def save(self, items):
+            return len(items)
 
-    scheduler = _Scheduler(hot_items_service=_HotItems(), alert_engine=object())
+    scheduler = MonitorScheduler(hot_items_service=_HotItems(), alert_engine=object())
 
-    await scheduler.trigger_manual_scan(["weibo", "zhihu"])
+    result = await scheduler.trigger_manual_scan(["weibo", "zhihu"], auto_analyze=False)
 
-    assert processed == [
-        ("weibo", ["weibo_1"]),
-        ("zhihu", ["zhihu_1"]),
-    ]
+    assert result["scanned_platforms"] == ["weibo", "zhihu"]
+    assert result["saved_count"] == 2
+    assert result["total_fetched"] == 2
+    assert result["auto_analyze"] is False
+    assert result["analysis_scheduled"] is False
 
 
 @pytest.mark.anyio
@@ -154,3 +155,247 @@ async def test_monitor_scheduler_tracks_failure_error_and_duration() -> None:
     assert "timeout" in status["last_error"]["message"]
     assert status["last_scan_duration_ms"] >= 0
     assert "weibo" in status["platform_durations_ms"]
+
+
+@pytest.mark.anyio
+async def test_scheduler_dispatches_pipeline_runner_after_scan() -> None:
+    from app.services.monitor.scheduler import MonitorScheduler
+
+    class _HotItems:
+        async def fetch_all(self):
+            return {
+                "thepaper": [
+                    HotItem(
+                        id="thepaper_1",
+                        platform="thepaper",
+                        title="澎湃新闻热点",
+                        url="https://example.com/thepaper/1",
+                        hot_value=100,
+                        rank=1,
+                        trend=TrendDirection.NEW,
+                    )
+                ]
+            }
+
+        async def detect_incremental(self, items, platform):
+            return {"new": items, "updated": [], "removed": []}
+
+        async def save(self, items):
+            return len(items)
+
+    class _AlertEngine:
+        async def check_and_alert(self, items, platform):
+            return []
+
+    captured: list[tuple[str, str]] = []
+
+    class _PipelineRunner:
+        def process_hot_item(self, item, config):
+            captured.append((item.id, config.key))
+            return None
+
+    scheduler = MonitorScheduler(
+        hot_items_service=_HotItems(),
+        alert_engine=_AlertEngine(),
+        pipeline_runner=_PipelineRunner(),
+    )
+
+    await scheduler.scan_all_platforms()
+
+    assert captured == [("thepaper_1", "thepaper")]
+
+
+@pytest.mark.anyio
+async def test_scheduler_creates_hourly_window_and_window_items(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("TRUTHCAST_MONITOR_DB_PATH", str(tmp_path / "monitor.db"))
+
+    from app.services.monitor.scheduler import MonitorScheduler
+    from app.services.monitor.store import list_monitor_scan_window_details
+
+    class _HotItems:
+        platform_configs = []
+
+        async def fetch_all(self):
+            return {
+                "thepaper": [
+                    HotItem(
+                        id="thepaper_window_1",
+                        platform="thepaper",
+                        title="窗口新闻",
+                        url="https://example.com/window/1",
+                        hot_value=120,
+                        rank=1,
+                        trend=TrendDirection.NEW,
+                    )
+                ]
+            }
+
+        async def detect_incremental(self, items, platform):
+            return {"new": items, "updated": [], "removed": []}
+
+        async def save(self, items):
+            return len(items)
+
+    class _AlertEngine:
+        async def check_and_alert(self, items, platform):
+            return []
+
+    class _PipelineRunner:
+        def process_hot_item(self, item, config, dedupe_key=None):
+            from app.schemas.monitor import AnalysisStage, MonitorAnalysisResult
+
+            return MonitorAnalysisResult(
+                id="analysis_window_1",
+                hot_item_id=item.id,
+                platform=item.platform,
+                source_url=item.url,
+                dedupe_key=dedupe_key,
+                crawl_status="done",
+                current_stage=AnalysisStage.RISK_SNAPSHOT,
+                risk_snapshot_score=44,
+                risk_snapshot_label="needs_context",
+                risk_snapshot_reasons=["窗口抓取成功"],
+            )
+
+    scheduler = MonitorScheduler(
+        hot_items_service=_HotItems(),
+        alert_engine=_AlertEngine(),
+        pipeline_runner=_PipelineRunner(),
+        now_func=lambda: __import__("datetime").datetime(2026, 3, 21, 17, 28, tzinfo=__import__("datetime").timezone.utc),
+    )
+
+    await scheduler.scan_all_platforms()
+
+    details = list_monitor_scan_window_details(limit=5)
+    assert len(details) == 1
+    assert details[0].window.window_start.isoformat() == "2026-03-21T16:00:00+00:00"
+    assert details[0].window.window_end.isoformat() == "2026-03-21T17:00:00+00:00"
+    assert details[0].window.fetched_count == 1
+    assert details[0].window.analyzed_count == 1
+    assert len(details[0].items) == 1
+    assert details[0].items[0].analysis_result_id == "analysis_window_1"
+
+
+@pytest.mark.anyio
+async def test_scheduler_skips_duplicate_analysis_across_windows(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("TRUTHCAST_MONITOR_DB_PATH", str(tmp_path / "monitor.db"))
+
+    from datetime import datetime, timezone
+
+    from app.schemas.monitor import AnalysisStage, MonitorAnalysisResult
+    from app.services.monitor.scheduler import MonitorScheduler
+    from app.services.monitor.store import list_monitor_scan_window_details, save_monitor_analysis_result
+
+    save_monitor_analysis_result(
+        MonitorAnalysisResult(
+            id="analysis_existing",
+            hot_item_id="hot_existing",
+            platform="thepaper",
+            source_url="https://example.com/repeat",
+            dedupe_key="thepaper::重复新闻::https://example.com/repeat",
+            crawl_status="done",
+            current_stage=AnalysisStage.REPORT,
+            risk_snapshot_score=68,
+            risk_snapshot_label="high_risk",
+            risk_snapshot_reasons=["已存在历史研判"],
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+    )
+
+    class _HotItems:
+        platform_configs = []
+
+        async def fetch_all(self):
+            return {
+                "thepaper": [
+                    HotItem(
+                        id="thepaper_repeat_1",
+                        platform="thepaper",
+                        title="重复新闻",
+                        url="https://example.com/repeat",
+                        hot_value=140,
+                        rank=1,
+                        trend=TrendDirection.NEW,
+                    )
+                ]
+            }
+
+        async def detect_incremental(self, items, platform):
+            return {"new": items, "updated": [], "removed": []}
+
+        async def save(self, items):
+            return len(items)
+
+    class _AlertEngine:
+        async def check_and_alert(self, items, platform):
+            return []
+
+    captured: list[str] = []
+
+    class _PipelineRunner:
+        def process_hot_item(self, item, config, dedupe_key=None):
+            captured.append(item.id)
+            raise AssertionError("重复新闻不应再次进入检测")
+
+    scheduler = MonitorScheduler(
+        hot_items_service=_HotItems(),
+        alert_engine=_AlertEngine(),
+        pipeline_runner=_PipelineRunner(),
+        now_func=lambda: __import__("datetime").datetime(2026, 3, 21, 18, 28, tzinfo=__import__("datetime").timezone.utc),
+    )
+
+    await scheduler.scan_all_platforms()
+
+    details = list_monitor_scan_window_details(limit=5)
+    assert details[0].window.duplicate_count == 1
+    assert details[0].window.analyzed_count == 0
+    assert details[0].items[0].is_duplicate_across_windows is True
+    assert details[0].items[0].analysis_result_id == "analysis_existing"
+    assert captured == []
+
+
+@pytest.mark.anyio
+async def test_scheduler_does_not_duplicate_window_items_within_same_manual_window(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("TRUTHCAST_MONITOR_DB_PATH", str(tmp_path / "monitor.db"))
+
+    from datetime import datetime, timezone
+
+    from app.services.monitor.scheduler import MonitorScheduler
+    from app.services.monitor.store import get_monitor_scan_window_detail
+
+    class _HotItems:
+        platform_configs = []
+
+        async def fetch_platform(self, platform: str):
+            return [
+                HotItem(
+                    id="thepaper_repeat_same_window",
+                    platform=platform,
+                    title="同一窗口重复刷新新闻",
+                    url="https://example.com/same-window",
+                    hot_value=88,
+                    rank=1,
+                    trend=TrendDirection.NEW,
+                )
+            ]
+
+        async def detect_incremental(self, items, platform):
+            return {"new": [], "updated": [], "removed": []}
+
+        async def save(self, items):
+            return len(items)
+
+    scheduler = MonitorScheduler(
+        hot_items_service=_HotItems(),
+        alert_engine=object(),
+        now_func=lambda: datetime(2026, 3, 21, 17, 28, tzinfo=timezone.utc),
+    )
+
+    await scheduler.trigger_manual_scan(["thepaper"], auto_analyze=False)
+    await scheduler.trigger_manual_scan(["thepaper"], auto_analyze=False)
+
+    detail = get_monitor_scan_window_detail("window_2026032116")
+    assert detail is not None
+    assert len(detail.items) == 1
+    assert detail.items[0].title == "同一窗口重复刷新新闻"

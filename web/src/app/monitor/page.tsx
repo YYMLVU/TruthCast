@@ -13,10 +13,10 @@ export default function MonitorPage() {
         meta={
           <>
             <div className="rounded-full border border-[color:var(--border-strong)] bg-white/70 px-3 py-1.5 text-xs font-medium text-[color:var(--muted-strong)] shadow-[0_10px_24px_rgba(26,54,78,0.08)]">
-              热榜追踪 / 预警监控
+              热榜追踪 / 入口分发
             </div>
             <div className="rounded-full border border-[color:var(--border-strong)] bg-white/70 px-3 py-1.5 text-xs font-medium text-[color:var(--muted-strong)] shadow-[0_10px_24px_rgba(26,54,78,0.08)]">
-              节奏观测 / 风险密度
+              调度观测 / 结果跳转
             </div>
           </>
         }
@@ -25,14 +25,14 @@ export default function MonitorPage() {
             <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[color:var(--muted-strong)]">
               页面角色
             </div>
-            <div className="mt-1 text-sm font-medium text-foreground">前哨雷达 / 调度观测</div>
+            <div className="mt-1 text-sm font-medium text-foreground">前哨雷达 / 工作流入口</div>
           </div>
         }
       />
 
       <PageSection
         title="热榜信号与调度健康度"
-        description="把扫描、预警、风险和性能放在一个屏幕里，先看平台脉搏，再看具体热点。"
+        description="把扫描、预警、平台脉搏和自动研判入口放在一个屏幕里，先看哪里有信号，再决定跳到哪一页深入处理。"
         actions={
           <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/74 px-3 py-1.5 text-xs font-medium text-[color:var(--muted-strong)] shadow-[0_10px_24px_rgba(26,54,78,0.06)]">
             <Radar className="h-3.5 w-3.5 text-primary" />
@@ -60,11 +60,11 @@ export default function MonitorPage() {
           </div>
           <div className="rounded-[1.35rem] border border-white/70 bg-white/76 p-4 text-sm text-muted-foreground">
             <div className="text-sm font-medium text-foreground">2. 风险判断</div>
-            <p className="mt-2 leading-6">对候选热点进行风险打分，并按订阅规则判断是否触发告警。</p>
+            <p className="mt-2 leading-6">对候选热点进行风险打分，并把满足条件的结果送入 TruthCast 检测链路。</p>
           </div>
           <div className="rounded-[1.35rem] border border-white/70 bg-white/76 p-4 text-sm text-muted-foreground">
-            <div className="text-sm font-medium text-foreground">3. 状态观测</div>
-            <p className="mt-2 leading-6">通过耗时、失败次数和平台间隔判断监测系统是否需要调优。</p>
+            <div className="text-sm font-medium text-foreground">3. 跳转处理</div>
+            <p className="mt-2 leading-6">从监测台直接进入检测结果、舆情预演或应对内容页，继续人工判断和手动触发。</p>
           </div>
         </div>
       </PageSection>

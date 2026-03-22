@@ -176,6 +176,7 @@ platforms:
     newsnow_id: weibo-hot
     enabled: true
     scan_interval_minutes: 5
+    fetch_top_n: 3
   - key: zhihu
     display_name: 知乎
     newsnow_id: zhihu-hot
@@ -191,3 +192,58 @@ platforms:
     assert asyncio.run(service.get_platforms()) == ["weibo"]
     assert service.platform_ids == {"weibo": "weibo-hot"}
     assert service.platform_intervals == {"weibo": 5}
+    assert service.platform_fetch_limits == {"weibo": 3}
+
+
+def test_fetch_platform_respects_platform_fetch_top_n(tmp_path, monkeypatch) -> None:
+    config_path = tmp_path / "monitor_platforms.yaml"
+    config_path.write_text(
+        """
+defaults:
+  scan_interval_minutes: 60
+  fetch_top_n: 2
+  risk_snapshot_threshold: 40
+  report_threshold_for_simulation: 50
+
+platforms:
+  - key: thepaper
+    display_name: 澎湃新闻
+    newsnow_id: thepaper
+    enabled: true
+    fetch_top_n: 2
+""".strip(),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("TRUTHCAST_MONITOR_PLATFORM_CONFIG", str(config_path))
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, *, params=None, headers=None):
+            return httpx.Response(
+                200,
+                request=httpx.Request("GET", url, params=params, headers=headers),
+                json={
+                    "status": "success",
+                    "items": [
+                        {"title": "新闻1", "url": "https://example.com/1"},
+                        {"title": "新闻2", "url": "https://example.com/2"},
+                        {"title": "新闻3", "url": "https://example.com/3"},
+                    ],
+                },
+            )
+
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
+    service = HotItemsService("https://newsnow.busiyi.world/api/s")
+
+    items = asyncio.run(service.fetch_platform("thepaper"))
+
+    assert len(items) == 2
+    assert [item.title for item in items] == ["新闻1", "新闻2"]

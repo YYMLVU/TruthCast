@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.schemas.detect import ContentDraftData
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -42,6 +44,16 @@ class AlertStatus(str, Enum):
     SENT = "sent"
     ACKNOWLEDGED = "acknowledged"
     IGNORED = "ignored"
+
+
+class AnalysisStage(str, Enum):
+    HOT_ITEM = "hot_item"
+    CRAWL = "crawl"
+    RISK_SNAPSHOT = "risk_snapshot"
+    REPORT = "report"
+    SIMULATION = "simulation"
+    CONTENT = "content"
+    COMPLETED = "completed"
 
 
 class SubscriptionBase(BaseModel):
@@ -120,12 +132,16 @@ class HotItemListResponse(BaseModel):
 
 class MonitorScanRequest(BaseModel):
     platforms: list[str] = Field(default_factory=list)
+    auto_analyze: bool | None = None
 
 
 class MonitorScanResponse(BaseModel):
     scanned_platforms: list[str]
     saved_count: int
     total_fetched: int
+    window_id: str | None = None
+    auto_analyze: bool = False
+    analysis_scheduled: bool = False
 
 
 class Alert(BaseModel):
@@ -156,3 +172,93 @@ class Alert(BaseModel):
 
 class AlertListResponse(BaseModel):
     items: list[Alert]
+
+
+class MonitorScanTriggerType(str, Enum):
+    SCHEDULED = "scheduled"
+    MANUAL = "manual"
+
+
+class MonitorScanWindowStatus(str, Enum):
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class MonitorAnalysisResult(BaseModel):
+    id: str
+    hot_item_id: str
+    platform: str
+    source_url: str
+    dedupe_key: str | None = None
+    history_record_id: str | None = None
+    crawl_status: str = "pending"
+    crawl_title: str | None = None
+    crawl_content: str | None = None
+    crawl_publish_date: str | None = None
+    risk_snapshot_score: int | None = None
+    risk_snapshot_label: str | None = None
+    risk_snapshot_reasons: list[str] = Field(default_factory=list)
+    raw_evidences: list[dict[str, Any]] = Field(default_factory=list)
+    evidences: list[dict[str, Any]] = Field(default_factory=list)
+    current_stage: AnalysisStage = AnalysisStage.HOT_ITEM
+    report_score: int | None = None
+    report_level: str | None = None
+    report_data: dict[str, Any] | None = None
+    simulation_status: str = "pending"
+    simulation_data: dict[str, Any] | None = None
+    content_generation_status: str = "idle"
+    content_data: ContentDraftData | None = None
+    last_error: str | None = None
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
+
+
+class MonitorAnalysisResultListResponse(BaseModel):
+    items: list[MonitorAnalysisResult]
+
+
+class MonitorScanWindow(BaseModel):
+    id: str
+    window_start: datetime
+    window_end: datetime
+    trigger_type: MonitorScanTriggerType = MonitorScanTriggerType.SCHEDULED
+    status: MonitorScanWindowStatus = MonitorScanWindowStatus.RUNNING
+    platforms: list[str] = Field(default_factory=list)
+    fetched_count: int = 0
+    deduplicated_count: int = 0
+    analyzed_count: int = 0
+    duplicate_count: int = 0
+    created_at: datetime = Field(default_factory=_utc_now)
+    updated_at: datetime = Field(default_factory=_utc_now)
+
+
+class MonitorWindowItem(BaseModel):
+    id: str
+    window_id: str
+    platform: str
+    platform_display_name: str | None = None
+    hot_item_id: str | None = None
+    analysis_result_id: str | None = None
+    duplicate_of_analysis_result_id: str | None = None
+    dedupe_key: str
+    title: str
+    url: str
+    hot_value: int = 0
+    rank: int = 0
+    trend: TrendDirection = TrendDirection.NEW
+    is_duplicate_across_windows: bool = False
+    created_at: datetime = Field(default_factory=_utc_now)
+
+
+class MonitorWindowItemView(MonitorWindowItem):
+    analysis_result: MonitorAnalysisResult | None = None
+
+
+class MonitorScanWindowDetail(BaseModel):
+    window: MonitorScanWindow
+    items: list[MonitorWindowItemView]
+
+
+class MonitorScanWindowHistoryResponse(BaseModel):
+    windows: list[MonitorScanWindowDetail]

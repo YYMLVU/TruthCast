@@ -78,8 +78,8 @@ class HotItemsService:
         self.platform_intervals = {
             item.key: item.scan_interval_minutes
             for item in self.platform_configs
-            if item.scan_interval_minutes is not None
         }
+        self.platform_fetch_limits = {item.key: item.fetch_top_n for item in self.platform_configs}
 
     async def get_platforms(self) -> list[str]:
         return list(self.platform_ids.keys())
@@ -91,11 +91,15 @@ class HotItemsService:
         items = body.get("items", []) if isinstance(body, dict) else []
         if not isinstance(items, list):
             return []
-        return [
+        normalized = [
             self._normalize_item(platform_key, item, rank=index)
             for index, item in enumerate(items, start=1)
             if isinstance(item, dict)
         ]
+        limit = self.platform_fetch_limits.get(platform_key)
+        if limit is not None and limit > 0:
+            return normalized[:limit]
+        return normalized
 
     async def fetch_all(self) -> dict[str, list[HotItem]]:
         result: dict[str, list[HotItem]] = {}

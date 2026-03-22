@@ -16,7 +16,10 @@ import type {
   HistoryDetail,
   HistoryItem,
   MonitorAlert,
+  MonitorAnalysisResult,
   MonitorHotItem,
+  MonitorScanResponse,
+  MonitorScanWindowDetail,
   MonitorStatus,
   MonitorSubscription,
   MonitorSubscriptionCreate,
@@ -119,12 +122,17 @@ export async function getMonitorHotItems(limit = 20, platform?: string): Promise
   return data.items;
 }
 
-export async function triggerMonitorScan(platforms?: string[]): Promise<{
-  scanned_platforms: string[];
-  saved_count: number;
-  total_fetched: number;
-}> {
-  const { data } = await api.post('/monitor/scan', { platforms: platforms ?? [] });
+export async function triggerMonitorScan(
+  platforms?: string[],
+  autoAnalyze?: boolean
+): Promise<MonitorScanResponse> {
+  const payload: { platforms: string[]; auto_analyze?: boolean } = {
+    platforms: platforms ?? [],
+  };
+  if (typeof autoAnalyze === 'boolean') {
+    payload.auto_analyze = autoAnalyze;
+  }
+  const { data } = await api.post<MonitorScanResponse>('/monitor/scan', payload);
   return data;
 }
 
@@ -133,6 +141,46 @@ export async function getMonitorAlerts(limit = 50): Promise<MonitorAlert[]> {
     params: { limit },
   });
   return data.items;
+}
+
+export async function getMonitorAnalysisResults(limit = 20): Promise<MonitorAnalysisResult[]> {
+  const { data } = await api.get<{ items: MonitorAnalysisResult[] }>('/monitor/analysis-results', {
+    params: { limit },
+  });
+  return data.items;
+}
+
+export async function getLatestMonitorWindow(): Promise<MonitorScanWindowDetail> {
+  const { data } = await api.get<MonitorScanWindowDetail>('/monitor/windows/latest');
+  return data;
+}
+
+export async function getMonitorWindowHistory(hours = 6, limit = 24): Promise<MonitorScanWindowDetail[]> {
+  const { data } = await api.get<{ windows: MonitorScanWindowDetail[] }>('/monitor/windows/history', {
+    params: { hours, limit },
+  });
+  return data.windows;
+}
+
+export async function getMonitorAnalysisResult(resultId: string): Promise<MonitorAnalysisResult> {
+  const { data } = await api.get<MonitorAnalysisResult>(`/monitor/analysis-results/${resultId}`);
+  return data;
+}
+
+export async function generateMonitorAnalysisContent(resultId: string): Promise<{ status: string; result_id: string }> {
+  const { data } = await api.post<{ status: string; result_id: string }>(
+    `/monitor/analysis-results/${resultId}/generate-content`
+  );
+  return data;
+}
+
+export async function analyzeMonitorWindowItem(
+  itemId: string
+): Promise<{ analysis_result: MonitorAnalysisResult }> {
+  const { data } = await api.post<{ analysis_result: MonitorAnalysisResult }>(
+    `/monitor/window-items/${itemId}/analyze`
+  );
+  return data;
 }
 
 export async function acknowledgeMonitorAlert(id: string): Promise<void> {

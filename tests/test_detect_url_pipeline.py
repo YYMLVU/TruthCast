@@ -39,6 +39,7 @@ def test_detect_url_endpoint(mock_risk, mock_crawl):
     assert data["content"] == "Test Content"
     assert data["risk"]["label"] == "可疑"
     assert data["risk"]["score"] == 65
+    mock_risk.assert_called_once_with("Test Title\n\nTest Content", enable_news_gate=True)
 
 @patch("app.api.routes_detect.crawl_news_url")
 def test_detect_url_crawl_fail(mock_crawl):
