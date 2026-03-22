@@ -7,10 +7,12 @@ from app.services.news_crawler import CrawledNews, crawl_news_url
 from app.services.url_extraction.extractors import ContentCandidate
 from app.services.url_extraction.metadata import PageMetadata
 from app.services.url_extraction.ranker import RankedCandidate
+from app.services.url_extraction.publishers.ckxxapp import PublisherArticleResult
 
 
 @patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
 @patch("app.services.news_crawler.fetch_page")
+@patch("app.services.news_crawler.try_extract_publisher_article")
 @patch("app.services.news_crawler.extract_metadata")
 @patch("app.services.news_crawler.extract_with_readability")
 @patch("app.services.news_crawler.extract_with_trafilatura")
@@ -20,9 +22,11 @@ def test_crawl_news_url_prefers_ranked_candidate(
     mock_trafilatura,
     mock_readability,
     mock_metadata,
+    mock_try_publisher,
     mock_fetch,
     _mock_validate_url,
 ):
+    mock_try_publisher.return_value = None
     mock_fetch.return_value = (
         "https://example.com/news",
         "<html><body><article><p>正文</p></article></body></html>",
@@ -72,7 +76,9 @@ def test_crawl_news_url_prefers_ranked_candidate(
 
 @patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
 @patch("app.services.news_crawler.fetch_page")
-def test_crawl_news_url_http_error(mock_fetch, _mock_validate_url):
+@patch("app.services.news_crawler.try_extract_publisher_article")
+def test_crawl_news_url_http_error(mock_try_publisher, mock_fetch, _mock_validate_url):
+    mock_try_publisher.return_value = None
     mock_fetch.side_effect = httpx.HTTPStatusError(
         "404 Not Found",
         request=MagicMock(),
@@ -88,6 +94,7 @@ def test_crawl_news_url_http_error(mock_fetch, _mock_validate_url):
 
 @patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
 @patch("app.services.news_crawler.fetch_page")
+@patch("app.services.news_crawler.try_extract_publisher_article")
 @patch("app.services.news_crawler.extract_metadata")
 @patch("app.services.news_crawler.extract_with_readability")
 @patch("app.services.news_crawler.extract_with_trafilatura")
@@ -97,9 +104,11 @@ def test_crawl_news_url_returns_failed_when_no_candidate(
     mock_trafilatura,
     mock_readability,
     mock_metadata,
+    mock_try_publisher,
     mock_fetch,
     _mock_validate_url,
 ):
+    mock_try_publisher.return_value = None
     mock_fetch.return_value = ("https://example.com/empty", "<html><body>empty</body></html>")
     mock_metadata.return_value = PageMetadata(
         title="标题",
@@ -127,6 +136,7 @@ def test_crawl_news_url_returns_failed_when_no_candidate(
 
 @patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
 @patch("app.services.news_crawler.fetch_page")
+@patch("app.services.news_crawler.try_extract_publisher_article")
 @patch("app.services.news_crawler.extract_metadata")
 @patch("app.services.news_crawler.extract_with_readability")
 @patch("app.services.news_crawler.extract_with_trafilatura")
@@ -136,9 +146,11 @@ def test_crawl_news_url_logs_fetch_summary(
     mock_trafilatura,
     mock_readability,
     mock_metadata,
+    mock_try_publisher,
     mock_fetch,
     _mock_validate_url,
 ):
+    mock_try_publisher.return_value = None
     mock_fetch.return_value = ("https://example.com/news", "<html><body><article>正文</article></body></html>")
     mock_metadata.return_value = PageMetadata(
         title="日志标题",
@@ -571,3 +583,28 @@ def test_crawl_news_url_logs_llm_postprocess_and_rescue(
     assert result.success is True
     logged = " | ".join(str(call) for call in mock_info.call_args_list)
     assert "LLM兜底救援开始" in logged
+@patch("app.core.security.validate_url_for_ssrf", side_effect=lambda url: url)
+@patch("app.services.news_crawler.fetch_page")
+@patch("app.services.news_crawler.try_extract_publisher_article")
+def test_crawl_news_url_prefers_ckxxapp_publisher_specific_extractor(
+    mock_try_publisher,
+    mock_fetch,
+    _mock_validate_url,
+):
+    mock_fetch.return_value = (
+        "https://ckxxapp.ckxx.net/pages/2026/03/22/test.html",
+        "<html>...</html>",
+    )
+    mock_try_publisher.return_value = PublisherArticleResult(
+        title="参考消息标题",
+        content="第一段。\n\n第二段。",
+        publish_date="2026-03-22",
+        source_url="https://ckxxapp.ckxx.net/pages/2026/03/22/test.html",
+    )
+
+    result = crawl_news_url("https://ckxxapp.ckxx.net/pages/2026/03/22/test.html")
+
+    assert result.success is True
+    assert result.title == "参考消息标题"
+    assert result.content == "第一段。\n\n第二段。"
+    assert result.publish_date == "2026-03-22"

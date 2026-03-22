@@ -93,6 +93,15 @@ export type UrlDetectResponse = {
   error_msg?: string;
 };
 
+export type UrlCrawlResponse = {
+  url: string;
+  title: string;
+  content: string;
+  publish_date: string;
+  success: boolean;
+  error_msg?: string;
+};
+
 export type ClaimItem = {
   claim_id: string;
   claim_text: string;

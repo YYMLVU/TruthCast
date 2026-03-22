@@ -45,6 +45,12 @@ class UrlDetectRequest(BaseModel):
     url: str = Field(description="URL of the news to analyze")
 
 
+class UrlRiskDetectRequest(BaseModel):
+    url: str = Field(description="Source URL of the crawled news")
+    title: str = Field(default="", description="Crawled news title")
+    content: str = Field(default="", description="Crawled news content")
+
+
 class DetectResponse(BaseModel):
     label: str
     confidence: float
@@ -60,6 +66,15 @@ class UrlDetectResponse(BaseModel):
     content: str
     publish_date: str
     risk: DetectResponse | None = None
+    success: bool = True
+    error_msg: str = ""
+
+
+class UrlCrawlResponse(BaseModel):
+    url: str
+    title: str
+    content: str
+    publish_date: str
     success: bool = True
     error_msg: str = ""
 

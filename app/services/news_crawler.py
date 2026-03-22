@@ -14,6 +14,7 @@ from app.services.url_extraction.llm_postprocess import (
     rescue_extracted_candidates,
 )
 from app.services.url_extraction.metadata import extract_metadata
+from app.services.url_extraction.publishers import try_extract_publisher_article
 from app.services.url_extraction.rendered import render_page
 from app.services.url_extraction.ranker import rank_candidates
 
@@ -117,6 +118,22 @@ def crawl_news_url(url: str, timeout_sec: float = 15.0) -> CrawledNews:
             final_url,
             len(html),
         )
+        publisher_article = try_extract_publisher_article(final_url, html)
+        if publisher_article is not None:
+            logger.info(
+                "新闻抓取：命中站点特化解析 url=%s title=%s content_len=%s publish_date=%s",
+                final_url,
+                publisher_article.title[:80],
+                len(publisher_article.content),
+                publisher_article.publish_date or "",
+            )
+            return CrawledNews(
+                title=publisher_article.title,
+                content=publisher_article.content,
+                publish_date=publisher_article.publish_date,
+                source_url=publisher_article.source_url,
+                success=True,
+            )
         metadata = extract_metadata(html, final_url)
         logger.info(
             "新闻抓取：metadata提取完成 url=%s title=%s publish_date=%s canonical=%s",

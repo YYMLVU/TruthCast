@@ -24,6 +24,7 @@ import {
   alignEvidence,
   alignEvidenceWithSignal,
   analyzeMultimodalImagesWithSignal,
+  crawlNewsUrl,
   detect,
   detectMultimodalWithSignal,
   detectWithSignal,
@@ -33,11 +34,11 @@ import {
   detectEvidenceWithSignal,
   detectReport,
   detectReportWithSignal,
-  simulateStream,
+  detectUrlRisk,
   loadLatestPipelineState,
   savePipelinePhaseSnapshot,
+  simulateStream,
   updateHistorySimulation,
-  detectUrl,
 } from '@/services/api';
 import type { SimulationStage, SimulationStreamEvent } from '@/services/api';
 
@@ -336,33 +337,45 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     void _persistPhaseSnapshot(get, 'detect', 'running', { payload: { url } });
 
     try {
-      const result = await detectUrl(url, signal);
-      if (!result.success) {
-        throw new Error(result.error_msg || '抓取失败');
+      const crawlResult = await crawlNewsUrl(url, signal);
+      if (!crawlResult.success) {
+        throw new Error(crawlResult.error_msg || '抓取失败');
       }
 
-      // 抓取成功，填充数据
-      const title = (result.title || '').trim();
-      const content = (result.content || '').trim();
+      // 抓取成功后立刻填充输入新闻，避免等待风险快照完成才显示。
+      const title = (crawlResult.title || '').trim();
+      const content = (crawlResult.content || '').trim();
       const mergedText = title ? `${title}\n\n${content}` : content;
 
       set({
         text: mergedText,
-        detectData: result.risk,
-        strategy: result.risk?.strategy ?? null,
         sourceMeta: {
-          source_url: result.url,
-          source_title: result.title,
-          source_publish_date: result.publish_date,
+          source_url: crawlResult.url,
+          source_title: crawlResult.title,
+          source_publish_date: crawlResult.publish_date,
         },
       });
+      void _persistPhaseSnapshot(get, 'detect', 'running');
+      toast.success('链接抓取完成，正在进行风险快照');
 
+      const riskResult = await detectUrlRisk(
+        {
+          url: crawlResult.url,
+          title: crawlResult.title,
+          content: crawlResult.content,
+        },
+        signal
+      );
+
+      set({
+        detectData: riskResult,
+        strategy: riskResult.strategy ?? null,
+      });
       setPhase('detect', 'done');
       void _persistPhaseSnapshot(get, 'detect', 'done');
-      toast.success('链接抓取与初步评估完成');
+      toast.success('风险快照完成');
 
-      // 抓取成功后，复用 /detect/url 返回的风险快照与策略，从 claims 阶段继续，
-      // 避免重复执行一次文本元分析和风险快照。
+      // 风险快照完成后，从 claims 阶段继续，避免重复执行一次文本元分析。
       await get().runPipeline({ taskId, skipDetect: true });
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
