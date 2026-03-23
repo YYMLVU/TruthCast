@@ -41,7 +41,7 @@ function analysisStageLabel(stage: string) {
     risk_snapshot: '风险快照',
     report: '综合报告',
     simulation: '舆情预演',
-    content: '应对内容',
+    content: '公关响应',
     completed: '流程完成',
   };
   return map[stage] ?? stage;
@@ -288,7 +288,7 @@ function WindowNewsCard({
             onClick={() => analysis && onOpenAnalysis(analysis, '/content')}
           >
             <ExternalLink className="mr-2 h-4 w-4" />
-            {analysis?.content_generation_status === 'done' ? '查看应对内容' : '生成应对内容'}
+            {analysis?.content_generation_status === 'done' ? '查看公关响应' : '生成公关响应'}
           </Button>
         </div>
       </div>

@@ -452,7 +452,7 @@ def build_intent_clarify_message(raw_text: str) -> ChatMessage:
             "我收到一段文本，但当前意图还不够明确。\n\n"
             "你希望我怎么处理这段内容？\n"
             "- 做完整分析（风险快照->主张->证据->对齐->报告）\n"
-            "- 或直接选择单技能（主张/证据/对齐/报告/预演/应对内容）\n\n"
+            "- 或直接选择单技能（主张/证据/对齐/报告/预演/公关响应）\n\n"
             f"文本预览：{preview}"
         ),
         actions=[
@@ -462,7 +462,7 @@ def build_intent_clarify_message(raw_text: str) -> ChatMessage:
             ChatAction(type="command", label="仅证据对齐", command="/align_only"),
             ChatAction(type="command", label="仅生成报告", command="/report_only"),
             ChatAction(type="command", label="仅舆情预演", command="/simulate"),
-            ChatAction(type="command", label="仅应对内容", command="/content_generate"),
+            ChatAction(type="command", label="仅公关响应", command="/content_generate"),
             ChatAction(type="command", label="解释判定原因", command="/why"),
             ChatAction(type="command", label="补充更多证据", command="/more_evidence"),
             ChatAction(type="command", label="改写解释版本", command="/rewrite short"),
@@ -498,8 +498,8 @@ def build_help_message() -> ChatMessage:
             "- /align_only [record_id]：仅做证据对齐\n"
             "- /report_only [record_id]：仅生成报告\n"
             "- /simulate [record_id]：仅执行舆情预演\n"
-            "- /content_generate [style=...]：仅生成应对内容\n\n"
-            "- /content [style=... detail=brief|full force=true|false reuse_only=true|false]：CLI 友好应对内容\n"
+            "- /content_generate [style=...]：仅生成公关响应\n\n"
+            "- /content [style=... detail=brief|full force=true|false reuse_only=true|false]：CLI 友好公关响应\n"
             "- /content_show clarification short|medium|long：查看澄清稿指定版本\n"
             "- /content_show faq 1-5：查看 FAQ 区间\n"
             "- /content_show scripts weibo,wechat：查看指定平台话术\n\n"
@@ -808,7 +808,7 @@ def run_why(args: ToolWhyArgs) -> ChatMessage:
     ]
 
     if risk_score_val >= 70:
-        base_actions.append(ChatAction(type="link", label="生成应对内容", href="/content"))
+        base_actions.append(ChatAction(type="link", label="生成公关响应", href="/content"))
         base_actions.append(ChatAction(type="command", label="深入分析证据", command=f"/deep_dive {record['id']} evidence"))
     else:
         base_actions.append(ChatAction(type="command", label="查看证据来源", command=f"/deep_dive {record['id']} sources"))

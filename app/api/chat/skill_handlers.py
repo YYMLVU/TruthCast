@@ -1041,7 +1041,7 @@ def _handle_single_skill_tool(
             actions = [
                 ChatAction(type="command", label="仅执行舆情预演", command="/simulate"),
                 ChatAction(
-                    type="command", label="仅生成应对内容", command="/content_generate"
+                    type="command", label="仅生成公关响应", command="/content_generate"
                 ),
             ]
             references = [
@@ -1057,7 +1057,7 @@ def _handle_single_skill_tool(
             actions = [
                 ChatAction(type="command", label="仅执行舆情预演", command="/simulate"),
                 ChatAction(
-                    type="command", label="仅生成应对内容", command="/content_generate"
+                    type="command", label="仅生成公关响应", command="/content_generate"
                 ),
             ]
             references = []
@@ -1301,7 +1301,7 @@ def _handle_single_skill_tool(
                     actions=[
                         ChatAction(
                             type="command",
-                            label="继续生成应对内容",
+                            label="继续生成公关响应",
                             command="/content_generate",
                         )
                     ],
@@ -1539,7 +1539,7 @@ def _handle_single_skill_tool(
             actions=[
                 ChatAction(
                     type="command",
-                    label="继续生成应对内容",
+                    label="继续生成公关响应",
                     command="/content_generate",
                 )
             ],
@@ -1570,7 +1570,7 @@ def _handle_single_skill_tool(
             lines: list[str] = []
             faq_items = content_resp.faq or []
             scripts = content_resp.platform_scripts or []
-            lines.append("【应对内容生成结果】\n")
+            lines.append("【公关响应生成结果】\n")
             lines.append("[澄清稿] 3 个版本（短/中/长）\n")
             lines.append(f"[FAQ] {len(faq_items)} 条\n")
             lines.append(f"[平台话术] {len(scripts)} 条\n\n")
@@ -1677,7 +1677,7 @@ def _handle_single_skill_tool(
                 )
                 yield _emit_sse_stage(session_id, "content_generate", "running")
                 yield _emit_sse_token(
-                    session_id, "已加载当前会话中已生成的应对内容。\n"
+                    session_id, "已加载当前会话中已生成的公关响应。\n"
                 )
                 section = (args.section or "").strip().lower()
                 variant = (args.variant or "").strip().lower()
@@ -1762,7 +1762,7 @@ def _handle_single_skill_tool(
 
             no_show_msg = ChatMessage(
                 role="assistant",
-                content="当前会话暂无可展示的应对内容。请先执行 /content 或 /content_generate 生成。",
+                content="当前会话暂无可展示的公关响应。请先执行 /content 或 /content_generate 生成。",
                 actions=[
                     ChatAction(type="command", label="立即生成", command="/content")
                 ],
@@ -1781,7 +1781,7 @@ def _handle_single_skill_tool(
             )
             yield _emit_sse_stage(session_id, "content_generate", "running")
             yield _emit_sse_token(
-                session_id, "报告中间态缺失，已直接复用当前会话已有应对内容。\n"
+                session_id, "报告中间态缺失，已直接复用当前会话已有公关响应。\n"
             )
             for line in _render_content_lines(content_resp_fallback, detail):
                 yield _emit_sse_token(session_id, line)
@@ -1967,7 +1967,7 @@ def _handle_single_skill_tool(
             )
             yield _emit_sse_stage(session_id, "content_generate", "running")
             yield _emit_sse_token(
-                session_id, "命中已生成内容：复用会话中的应对内容（未重复调用模型）。\n"
+                session_id, "命中已生成内容：复用会话中的公关响应（未重复调用模型）。\n"
             )
             for line in _render_content_lines(content_resp_existing, detail):
                 yield _emit_sse_token(session_id, line)
@@ -2017,7 +2017,7 @@ def _handle_single_skill_tool(
         if bool(session_meta.get("content_generation_in_progress")) and not args.force:
             in_progress_msg = ChatMessage(
                 role="assistant",
-                content="当前已有应对内容生成任务进行中，请稍后使用 /content 查看结果，避免重复生成。",
+                content="当前已有公关响应生成任务进行中，请稍后使用 /content 查看结果，避免重复生成。",
                 actions=[
                     ChatAction(type="command", label="查看当前内容", command="/content")
                 ],
@@ -2041,7 +2041,7 @@ def _handle_single_skill_tool(
                 yield _emit_sse_stage(session_id, "content_generate", "running")
                 yield _emit_sse_token(
                     session_id,
-                    "命中会话缓存：复用最近一次应对内容结果（未重复调用模型）。\n",
+                    "命中会话缓存：复用最近一次公关响应结果（未重复调用模型）。\n",
                 )
                 for line in _render_content_lines(content_resp, detail):
                     yield _emit_sse_token(session_id, line)
@@ -2055,7 +2055,7 @@ def _handle_single_skill_tool(
                             label="查看完整内容",
                             command="/content detail=full",
                         ),
-                        ChatAction(type="link", label="打开应对内容", href="/content"),
+                        ChatAction(type="link", label="打开公关响应", href="/content"),
                     ],
                     references=[],
                     meta={
@@ -2075,7 +2075,7 @@ def _handle_single_skill_tool(
 
         yield _emit_sse_stage(session_id, "content_generate", "running")
         yield _emit_sse_token(
-            session_id, "正在生成应对内容（澄清稿 / FAQ / 多平台话术）...\n"
+            session_id, "正在生成公关响应（澄清稿 / FAQ / 多平台话术）...\n"
         )
         chat_store.update_session_meta_fields(
             session_id, {"content_generation_in_progress": True}
@@ -2102,7 +2102,7 @@ def _handle_single_skill_tool(
             session_meta["content_generation_in_progress"] = False
             err_msg = ChatMessage(
                 role="assistant",
-                content="应对内容生成失败，请稍后重试。",
+                content="公关响应生成失败，请稍后重试。",
                 actions=[
                     ChatAction(
                         type="command", label="重试", command="/content_generate"
@@ -2163,7 +2163,7 @@ def _handle_single_skill_tool(
         msg = ChatMessage(
             role="assistant",
             content=(
-                "content_generate 完成：已生成应对内容。\n"
+                "content_generate 完成：已生成公关响应。\n"
                 f"- 澄清稿：{clarification_versions} 个版本\n"
                 f"- FAQ：{faq_count} 条\n"
                 f"- 多平台话术：{platform_scripts_count} 条"
@@ -2177,7 +2177,7 @@ def _handle_single_skill_tool(
                     label="按模块查看",
                     command="/content_show clarification short",
                 ),
-                ChatAction(type="link", label="打开应对内容", href="/content"),
+                ChatAction(type="link", label="打开公关响应", href="/content"),
             ],
             references=[],
             meta={"phase": "content", "record_id": record_id, "task_id": session_id},

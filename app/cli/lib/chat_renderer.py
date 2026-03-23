@@ -36,7 +36,7 @@ class ChatRenderer:
         "evidence_align": "证据对齐",
         "report": "综合报告",
         "simulation": "舆情预演",
-        "content": "应对内容",
+        "content": "公关响应",
     }
 
     def render_token(self, content: str) -> None:

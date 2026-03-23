@@ -62,7 +62,7 @@ def chat_stream(payload: ChatRequest) -> StreamingResponse:
         ChatAction(type="link", label="打开对话工作台", href="/chat"),
         ChatAction(type="link", label="检测结果", href="/result"),
         ChatAction(type="link", label="舆情预演", href="/simulation"),
-        ChatAction(type="link", label="应对内容", href="/content"),
+        ChatAction(type="link", label="公关响应", href="/content"),
         ChatAction(type="link", label="历史记录", href="/history"),
     ]
 

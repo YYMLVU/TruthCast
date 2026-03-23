@@ -461,7 +461,7 @@ def _build_html(data: ExportDataRequest) -> str:
 
     if data.content:
         content = data.content
-        parts.append("<h2>应对内容</h2>")
+        parts.append("<h2>公关响应</h2>")
         primary = _collect_primary_clarification(content)
         if primary is not None:
             parts.append("<h3>澄清稿（主稿）</h3>")
@@ -795,7 +795,7 @@ def generate_word_bytes(data: ExportDataRequest) -> bytes:
 
     if data.content:
         content = data.content
-        doc.add_heading("应对内容", level=2)
+        doc.add_heading("公关响应", level=2)
         primary = _collect_primary_clarification(content)
         if primary is not None:
             short_text = _clarification_field(primary, "short")

@@ -373,7 +373,7 @@ const PHASE_LABEL: Record<keyof PhaseState, string> = {
   evidence: '证据处理',
   report: '综合报告',
   simulation: '舆情预演',
-  content: '应对内容',
+  content: '公关响应',
 };
 
 const REPORT_SECTIONS = ['tldr', 'findings', 'risks'] as const;

@@ -347,7 +347,7 @@ function generateMarkdown(data: ExportData): string {
   // 应对内容（澄清稿/FAQ/平台话术）
   // 放置在“舆情预演 → 应对建议”之后，便于阅读：先看风险/证据/报告/预演，再看可直接使用的应对话术
   if (data.content) {
-    lines.push('## 应对内容');
+    lines.push('## 公关响应');
     lines.push('');
 
     const primary = resolvePrimaryClarification(data.content);

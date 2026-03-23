@@ -64,7 +64,7 @@ export default function MonitorPage() {
           </div>
           <div className="rounded-[1.35rem] border border-white/70 bg-white/76 p-4 text-sm text-muted-foreground">
             <div className="text-sm font-medium text-foreground">3. 跳转处理</div>
-            <p className="mt-2 leading-6">从监测台直接进入检测结果、舆情预演或应对内容页，继续人工判断和手动触发。</p>
+            <p className="mt-2 leading-6">从监测台直接进入检测结果、舆情预演或公关响应页，继续人工判断和手动触发。</p>
           </div>
         </div>
       </PageSection>

@@ -480,8 +480,8 @@ export function ChatWorkbench() {
           return;
         }
         case 'content': {
-          addMessage('assistant', '应对内容生成完成。', {
-            actions: [{ type: 'link', label: '打开应对内容', href: '/content' }],
+          addMessage('assistant', '公关响应生成完成。', {
+            actions: [{ type: 'link', label: '打开公关响应', href: '/content' }],
           });
           return;
         }
@@ -884,7 +884,7 @@ export function ChatWorkbench() {
           <div className="whitespace-nowrap">证据处理：{phases.evidence}</div>
           <div className="whitespace-nowrap">综合报告：{phases.report}</div>
           <div className="whitespace-nowrap">舆情预演：{phases.simulation}</div>
-          <div className="whitespace-nowrap">应对内容：{phases.content}</div>
+          <div className="whitespace-nowrap">公关响应：{phases.content}</div>
         </div>
         <ContextPanel
           taskId={taskId}

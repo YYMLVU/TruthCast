@@ -32,7 +32,7 @@ const phaseLabels: Record<Phase, string> = {
   evidence: '证据检索',
   report: '综合报告',
   simulation: '舆情预演',
-  content: '应对内容',
+  content: '公关响应',
 };
 
 const phaseShortLabels: Record<Phase, string> = {

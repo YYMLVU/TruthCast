@@ -1025,7 +1025,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       evidence: '证据检索',
       report: '综合报告',
       simulation: '舆情预演',
-      content: '应对内容',
+      content: '公关响应',
     };
 
     // 不再清除下游数据，保留已完成的结果
