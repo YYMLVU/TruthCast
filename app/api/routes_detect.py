@@ -1,4 +1,5 @@
 import os
+from dataclasses import asdict, is_dataclass
 
 from fastapi import APIRouter
 
@@ -18,6 +19,7 @@ from app.schemas.detect import (
     ReportRequest,
     ReportResponse,
     StrategyConfig,
+    UrlCommentItem,
     UrlCrawlResponse,
     UrlDetectRequest,
     UrlDetectResponse,
@@ -41,6 +43,20 @@ try:
     )
 except (ValueError, TypeError):
     _MAX_INPUT_CHARS = _DEFAULT_MAX_CHARS
+
+
+def _normalize_url_comments(comments: object) -> list[UrlCommentItem]:
+    normalized: list[UrlCommentItem] = []
+    if not isinstance(comments, list):
+        return normalized
+    for item in comments:
+        if isinstance(item, UrlCommentItem):
+            normalized.append(item)
+        elif is_dataclass(item):
+            normalized.append(UrlCommentItem(**asdict(item)))
+        elif isinstance(item, dict):
+            normalized.append(UrlCommentItem(**item))
+    return normalized
 
 
 def _truncate_text(text: str) -> tuple[str, bool]:
@@ -195,6 +211,7 @@ def detect_url(payload: UrlDetectRequest) -> UrlDetectResponse:
         title=crawl_resp.title,
         content=crawl_resp.content,
         publish_date=crawl_resp.publish_date,
+        comments=_normalize_url_comments(crawl_resp.comments),
         risk=risk_resp,
         success=True,
     )
@@ -216,6 +233,7 @@ def crawl_url(payload: UrlDetectRequest) -> UrlCrawlResponse:
             title="",
             content="",
             publish_date="",
+            comments=[],
             success=False,
             error_msg=crawled.error_msg,
         )
@@ -232,6 +250,7 @@ def crawl_url(payload: UrlDetectRequest) -> UrlCrawlResponse:
         title=crawled.title,
         content=crawled.content,
         publish_date=crawled.publish_date,
+        comments=_normalize_url_comments(crawled.comments or []),
         success=True,
     )
 

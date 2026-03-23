@@ -1,9 +1,17 @@
 import html as html_lib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from bs4 import BeautifulSoup
 
+from app.services.url_extraction.publishers.common import clean_text
+
+
+@dataclass
+class PublisherComment:
+    username: str
+    content: str
+    publish_time: str
 
 @dataclass
 class PublisherArticleResult:
@@ -11,10 +19,11 @@ class PublisherArticleResult:
     content: str
     publish_date: str
     source_url: str
+    comments: list[PublisherComment] = field(default_factory=list)
 
 
 def _clean_text(value: str | None) -> str:
-    return re.sub(r"\s+", " ", str(value or "")).strip()
+    return clean_text(value)
 
 
 def _extract_title(soup: BeautifulSoup) -> str:
@@ -81,4 +90,5 @@ def try_extract_ckxxapp_article(source_url: str, html: str) -> PublisherArticleR
         content=content,
         publish_date=_extract_publish_date(soup),
         source_url=source_url,
+        comments=[],
     )

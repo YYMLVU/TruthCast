@@ -15,6 +15,7 @@ from app.services.url_extraction.llm_postprocess import (
 )
 from app.services.url_extraction.metadata import extract_metadata
 from app.services.url_extraction.publishers import try_extract_publisher_article
+from app.services.url_extraction.publishers.ckxxapp import PublisherComment
 from app.services.url_extraction.rendered import render_page
 from app.services.url_extraction.ranker import rank_candidates
 
@@ -27,6 +28,7 @@ class CrawledNews:
     content: str
     publish_date: str
     source_url: str
+    comments: list[PublisherComment] | None = None
     success: bool = True
     error_msg: str = ""
 
@@ -132,6 +134,7 @@ def crawl_news_url(url: str, timeout_sec: float = 15.0) -> CrawledNews:
                 content=publisher_article.content,
                 publish_date=publisher_article.publish_date,
                 source_url=publisher_article.source_url,
+                comments=publisher_article.comments,
                 success=True,
             )
         metadata = extract_metadata(html, final_url)

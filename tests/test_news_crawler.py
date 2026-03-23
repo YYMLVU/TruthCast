@@ -26,6 +26,7 @@ def test_crawl_news_url_prefers_ranked_candidate(
     mock_fetch,
     _mock_validate_url,
 ):
+    os.environ["TRUTHCAST_URL_EXTRACT_LLM_ENABLED"] = "false"
     mock_try_publisher.return_value = None
     mock_fetch.return_value = (
         "https://example.com/news",
@@ -600,6 +601,7 @@ def test_crawl_news_url_prefers_ckxxapp_publisher_specific_extractor(
         content="第一段。\n\n第二段。",
         publish_date="2026-03-22",
         source_url="https://ckxxapp.ckxx.net/pages/2026/03/22/test.html",
+        comments=[],
     )
 
     result = crawl_news_url("https://ckxxapp.ckxx.net/pages/2026/03/22/test.html")
@@ -608,3 +610,4 @@ def test_crawl_news_url_prefers_ckxxapp_publisher_specific_extractor(
     assert result.title == "参考消息标题"
     assert result.content == "第一段。\n\n第二段。"
     assert result.publish_date == "2026-03-22"
+    assert result.comments == []

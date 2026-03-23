@@ -5,6 +5,12 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class UrlCommentItem(BaseModel):
+    username: str
+    content: str
+    publish_time: str
+
+
 class StrategyConfig(BaseModel):
     max_claims: int = Field(default=5, ge=1, le=20, description="最大主张抽取数量")
     complexity_level: str = Field(
@@ -65,6 +71,7 @@ class UrlDetectResponse(BaseModel):
     title: str
     content: str
     publish_date: str
+    comments: list[UrlCommentItem] = Field(default_factory=list)
     risk: DetectResponse | None = None
     success: bool = True
     error_msg: str = ""
@@ -75,6 +82,7 @@ class UrlCrawlResponse(BaseModel):
     title: str
     content: str
     publish_date: str
+    comments: list[UrlCommentItem] = Field(default_factory=list)
     success: bool = True
     error_msg: str = ""
 

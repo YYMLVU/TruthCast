@@ -13,6 +13,7 @@ def test_detect_url_endpoint_compat(mock_risk, mock_crawl):
         title="Test Title",
         content="Test Content",
         publish_date="2024-02-24",
+        comments=[{"username": "用户A", "content": "评论A", "publish_time": "2024-02-24 10:00:00"}],
         error_msg=""
     )
     
@@ -35,6 +36,7 @@ def test_detect_url_endpoint_compat(mock_risk, mock_crawl):
     assert data["success"] is True
     assert data["title"] == "Test Title"
     assert data["content"] == "Test Content"
+    assert data["comments"][0]["username"] == "用户A"
     assert data["risk"]["label"] == "可疑"
     assert data["risk"]["score"] == 65
     mock_risk.assert_called_once_with("Test Title\n\nTest Content", enable_news_gate=True)
@@ -47,6 +49,7 @@ def test_detect_url_crawl_endpoint_returns_content_without_risk(mock_crawl):
         title="Test Title",
         content="Test Content",
         publish_date="2024-02-24",
+        comments=[{"username": "用户A", "content": "评论A", "publish_time": "2024-02-24 10:00:00"}],
         error_msg=""
     )
 
@@ -61,6 +64,7 @@ def test_detect_url_crawl_endpoint_returns_content_without_risk(mock_crawl):
     assert data["success"] is True
     assert data["title"] == "Test Title"
     assert data["content"] == "Test Content"
+    assert data["comments"][0]["content"] == "评论A"
     mock_risk.assert_not_called()
 
 
@@ -98,6 +102,7 @@ def test_detect_url_endpoint_logs_summary(mock_risk, mock_crawl):
         title="Test Title",
         content="Test Content",
         publish_date="2024-02-24",
+        comments=[],
         error_msg=""
     )
     mock_risk.return_value = MagicMock(

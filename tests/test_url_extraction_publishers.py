@@ -1,4 +1,10 @@
+from unittest.mock import MagicMock, patch
+
 from app.services.url_extraction.publishers.ckxxapp import try_extract_ckxxapp_article
+from app.services.url_extraction.publishers.cls import try_extract_cls_article
+from app.services.url_extraction.publishers.thepaper import (
+    try_extract_thepaper_article,
+)
 
 
 def test_try_extract_ckxxapp_article_extracts_mobile_article_fields() -> None:
@@ -28,6 +34,7 @@ def test_try_extract_ckxxapp_article_extracts_mobile_article_fields() -> None:
     assert result.publish_date == "2026-03-22"
     assert result.source_url == "https://ckxxapp.ckxx.net/pages/2026/03/22/test.html"
     assert result.content == "第一段正文。\n\n第二段正文。"
+    assert result.comments == []
 
 
 def test_try_extract_ckxxapp_article_returns_none_for_non_matching_url() -> None:
@@ -62,3 +69,134 @@ def test_try_extract_ckxxapp_article_handles_realworld_escaped_contenttxt_withou
     assert "由于越来越担忧油价上涨将打击日本经济" in result.content
     assert "å" not in result.content
     assert "<\\/strong>" not in result.content
+    assert result.comments == []
+
+
+@patch("app.services.url_extraction.publishers.thepaper._fetch_thepaper_comments")
+def test_try_extract_thepaper_article_extracts_next_data_fields(mock_fetch_comments) -> None:
+    mock_fetch_comments.return_value = [
+        {
+            "userInfo": {"sname": "澎湃网友A"},
+            "content": "评论一",
+            "originCreateTime": "2026-03-23 10:00:00",
+        }
+    ]
+    html = """
+    <html>
+      <head>
+        <title>页面标题</title>
+        <meta property="og:title" content="OG 标题" />
+      </head>
+      <body>
+        <script id="__NEXT_DATA__" type="application/json">
+          {
+            "props": {
+              "pageProps": {
+                "detailData": {
+                  "contentDetail": {
+                    "name": "澎湃标题",
+                    "pubTime": "2026-03-23 09:30",
+                    "content": "<p>第一段正文。</p><p>第二段正文。</p>"
+                  }
+                }
+              }
+            }
+          }
+        </script>
+      </body>
+    </html>
+    """
+
+    result = try_extract_thepaper_article(
+        "https://www.thepaper.cn/newsDetail_forward_32810177",
+        html,
+    )
+
+    assert result is not None
+    assert result.title == "澎湃标题"
+    assert result.publish_date == "2026-03-23"
+    assert result.content == "第一段正文。\n\n第二段正文。"
+    assert result.source_url == "https://www.thepaper.cn/newsDetail_forward_32810177"
+    assert len(result.comments) == 1
+    assert result.comments[0].username == "澎湃网友A"
+    assert result.comments[0].content == "评论一"
+    assert result.comments[0].publish_time == "2026-03-23 10:00:00"
+
+
+@patch("app.services.url_extraction.publishers.cls._fetch_cls_comments")
+def test_try_extract_cls_article_extracts_next_data_fields(mock_fetch_comments) -> None:
+    mock_fetch_comments.return_value = [
+        {
+            "name": "小凯",
+            "content": "评论二",
+            "time": 1774231200,
+        }
+    ]
+    html = """
+    <html>
+      <head>
+        <title>页面标题</title>
+      </head>
+      <body>
+        <script id="__NEXT_DATA__" type="application/json">
+          {
+            "props": {
+              "initialState": {
+                "detail": {
+                  "articleDetail": {
+                    "title": "财联社标题",
+                    "ctime": 1774195200,
+                    "content": "<p>第一段正文。</p><p>第二段正文。</p>",
+                    "commentNum": 43
+                  },
+                  "comment": {}
+                }
+              }
+            }
+          }
+        </script>
+      </body>
+    </html>
+    """
+
+    result = try_extract_cls_article(
+        "https://www.cls.cn/detail/2320263",
+        html,
+    )
+
+    assert result is not None
+    assert result.title == "财联社标题"
+    assert result.publish_date == "2026-03-23"
+    assert result.content == "第一段正文。\n\n第二段正文。"
+    assert result.source_url == "https://www.cls.cn/detail/2320263"
+    assert len(result.comments) == 1
+    assert result.comments[0].username == "小凯"
+    assert result.comments[0].content == "评论二"
+    assert result.comments[0].publish_time == "2026-03-23 10:00:00"
+
+
+@patch("app.services.url_extraction.publishers.cls._fetch_cls_comments")
+def test_try_extract_cls_article_falls_back_to_dom_when_next_data_missing(mock_fetch_comments) -> None:
+    mock_fetch_comments.return_value = []
+    html = """
+    <html>
+      <head>
+        <meta property="article:published_time" content="2026-03-23 11:22:33" />
+      </head>
+      <body>
+        <div class="detail-title">DOM 财联社标题</div>
+        <div class="detail-content"><p>DOM 第一段。</p><p>DOM 第二段。</p></div>
+      </body>
+    </html>
+    """
+
+    result = try_extract_cls_article(
+        "https://www.cls.cn/detail/2320263",
+        html,
+    )
+
+    assert result is not None
+    assert result.title == "DOM 财联社标题"
+    assert result.publish_date == "2026-03-23"
+    assert result.content == "DOM 第一段。\n\nDOM 第二段。"
+    assert result.comments == []

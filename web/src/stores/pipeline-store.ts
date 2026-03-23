@@ -19,6 +19,7 @@ import type {
   HistoryDetail,
   MonitorAnalysisResult,
   StrategyConfig,
+  UrlCommentItem,
 } from '@/types';
 import {
   alignEvidence,
@@ -56,6 +57,7 @@ interface PipelineState {
     source_title?: string | null;
     source_publish_date?: string | null;
   } | null;
+  urlComments: UrlCommentItem[];
   claims: ClaimItem[];
   rawEvidences: EvidenceItem[];
   evidences: EvidenceItem[];
@@ -121,6 +123,7 @@ const initialState = {
     source_title?: string | null;
     source_publish_date?: string | null;
   } | null,
+  urlComments: [] as UrlCommentItem[],
   claims: [] as ClaimItem[],
   rawEvidences: [] as EvidenceItem[],
   evidences: [] as EvidenceItem[],
@@ -316,6 +319,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       enhancedText: null,
       strategy: null,
       sourceMeta: null,
+      urlComments: [],
       claims: [],
       rawEvidences: [],
       evidences: [],
@@ -349,6 +353,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
       set({
         text: mergedText,
+        urlComments: crawlResult.comments ?? [],
         sourceMeta: {
           source_url: crawlResult.url,
           source_title: crawlResult.title,
@@ -562,6 +567,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       enhancedText: opts?.skipDetect ? get().enhancedText : null,
       strategy: opts?.skipDetect ? get().strategy : null,
       sourceMeta: opts?.taskId ? get().sourceMeta : null,
+      urlComments: opts?.taskId ? get().urlComments : [],
       claims: [],
       rawEvidences: [],
       evidences: [],
@@ -930,6 +936,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         source_title: detail.report.source_title ?? null,
         source_publish_date: detail.report.source_publish_date ?? null,
       },
+      urlComments: [],
       claims,
       rawEvidences: evidences,
       evidences,
@@ -988,6 +995,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         source_title: result.crawl_title ?? report?.source_title ?? null,
         source_publish_date: result.crawl_publish_date ?? report?.source_publish_date ?? null,
       },
+      urlComments: [],
       claims,
       rawEvidences,
       evidences,

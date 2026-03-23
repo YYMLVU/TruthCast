@@ -83,11 +83,18 @@ export type UrlDetectRequest = {
   url: string;
 };
 
+export type UrlCommentItem = {
+  username: string;
+  content: string;
+  publish_time: string;
+};
+
 export type UrlDetectResponse = {
   url: string;
   title: string;
   content: string;
   publish_date: string;
+  comments: UrlCommentItem[];
   risk: DetectResponse | null;
   success: boolean;
   error_msg?: string;
@@ -98,6 +105,7 @@ export type UrlCrawlResponse = {
   title: string;
   content: string;
   publish_date: string;
+  comments: UrlCommentItem[];
   success: boolean;
   error_msg?: string;
 };
