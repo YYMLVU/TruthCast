@@ -15,6 +15,9 @@ const riskLevelMap: Record<string, string> = {
 
 const stanceMap: Record<string, string> = {
   support: '支持',
+  oppose: '反对',
+  opposed: '反对',
+  opposing: '反对',
   refute: '反驳',
   insufficient: '证据不足',
   doubt: '质疑',
@@ -62,6 +65,8 @@ const emotionMap: Record<string, string> = {
 
 const simulationStanceMap: Record<string, string> = {
   supportive: '支持',
+  oppose: '反对',
+  opposed: '反对',
   opposing: '反对',
   neutral: '中立',
   skeptical: '质疑',
