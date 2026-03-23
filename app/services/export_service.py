@@ -253,7 +253,7 @@ def _build_html(data: ExportDataRequest) -> str:
 
     if data.detect_data:
         detect = data.detect_data
-        parts.append("<h2>风险快照</h2>")
+        parts.append("<h2>风险初判</h2>")
         parts.append("<table><tr><th>项目</th><th>值</th></tr>")
         parts.append(
             f"<tr><td>风险标签</td><td>{escape(_zh(detect.label, _RISK_LABEL_MAP))}</td></tr>"
@@ -461,7 +461,7 @@ def _build_html(data: ExportDataRequest) -> str:
 
     if data.content:
         content = data.content
-        parts.append("<h2>应对内容</h2>")
+        parts.append("<h2>公关响应</h2>")
         primary = _collect_primary_clarification(content)
         if primary is not None:
             parts.append("<h3>澄清稿（主稿）</h3>")
@@ -618,7 +618,7 @@ def generate_word_bytes(data: ExportDataRequest) -> bytes:
 
     if data.detect_data:
         detect = data.detect_data
-        doc.add_heading("风险快照", level=2)
+        doc.add_heading("风险初判", level=2)
         table = doc.add_table(rows=4, cols=2)
         table.rows[0].cells[0].text = "风险标签"
         table.rows[0].cells[1].text = _zh(detect.label, _RISK_LABEL_MAP)
@@ -795,7 +795,7 @@ def generate_word_bytes(data: ExportDataRequest) -> bytes:
 
     if data.content:
         content = data.content
-        doc.add_heading("应对内容", level=2)
+        doc.add_heading("公关响应", level=2)
         primary = _collect_primary_clarification(content)
         if primary is not None:
             short_text = _clarification_field(primary, "short")

@@ -48,8 +48,10 @@ INTENT_PATTERNS: dict[str, list[str]] = {
     ],
     "content": [
         r"生成.*应对",
+        r"生成.*公关响应",
         r"写.*澄清",
         r"应对.*内容",
+        r"公关.*响应",
         r"澄清.*稿",
         r"生成.*声明",
         r"写.*声明",
@@ -475,7 +477,7 @@ def build_suggested_actions(
     if intent == "why" and record_id:
         actions.append({"type": "command", "label": "深入分析证据", "command": f"/deep_dive {record_id} evidence"})
         if risk_score is not None and risk_score >= 70:
-            actions.append({"type": "link", "label": "生成应对内容", "href": "/content"})
+            actions.append({"type": "link", "label": "生成公关响应", "href": "/content"})
         else:
             actions.append({"type": "command", "label": "查看证据来源", "command": f"/deep_dive {record_id} sources"})
             actions.append({"type": "command", "label": "对比历史记录", "command": "/list"})

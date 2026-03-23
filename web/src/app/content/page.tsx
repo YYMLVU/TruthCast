@@ -397,7 +397,7 @@ export default function ContentPage() {
       <div className="space-y-6 md:space-y-8">
         <PageHero
           eyebrow="Content Studio"
-          title="应对内容生成"
+          title="公关响应生成"
           description="基于已完成的分析结果生成澄清稿、FAQ 和多平台话术。"
         />
         <Skeleton className="h-12 w-full mb-6" />
@@ -410,7 +410,7 @@ export default function ContentPage() {
     <div className="space-y-6 md:space-y-8">
       <PageHero
         eyebrow="Content Studio"
-        title="应对内容生成"
+        title="公关响应生成"
         // description="这里把分析结果转成可发布、可解释、可分发的内容产物。页面定位是内容工作台，而不是简单的表单输出页。"
         meta={
           <>

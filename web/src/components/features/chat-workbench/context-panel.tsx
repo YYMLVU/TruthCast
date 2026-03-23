@@ -9,12 +9,12 @@ import type { Phase, PhaseState } from '@/types';
 import { zhRiskLabel } from '@/lib/i18n';
 
 const PHASE_LABEL: Record<Phase, string> = {
-  detect: '风险快照',
+  detect: '风险初判',
   claims: '主张抽取',
   evidence: '证据检索',
   report: '综合报告',
   simulation: '舆情预演',
-  content: '应对内容',
+  content: '公关响应',
 };
 
 function phaseBadgeVariant(state: PhaseState[Phase]): 'default' | 'secondary' | 'outline' | 'destructive' {
@@ -79,7 +79,7 @@ export function ContextPanel({
             <Link href="/simulation">舆情预演</Link>
           </Button>
           <Button asChild variant="secondary" size="sm">
-            <Link href="/content">应对内容</Link>
+            <Link href="/content">公关响应</Link>
           </Button>
           <Button asChild variant="secondary" size="sm">
             <Link href="/history">历史记录</Link>
@@ -135,7 +135,7 @@ export function ContextPanel({
           </div>
 
           <div>
-            <span className="text-muted-foreground">风险快照：</span>
+            <span className="text-muted-foreground">风险初判：</span>
             {detectData ? `${zhRiskLabel(detectData.label)}（${detectData.score}）` : '未生成'}
           </div>
           <div>
@@ -147,7 +147,7 @@ export function ContextPanel({
             {simulation ? `叙事分支 ${simulation.narratives?.length ?? 0} 条` : '未生成'}
           </div>
           <div>
-            <span className="text-muted-foreground">应对内容：</span>
+            <span className="text-muted-foreground">公关响应：</span>
             {content ? '已生成草稿' : '未生成'}
           </div>
 

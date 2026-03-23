@@ -237,7 +237,7 @@ def _analyze_emotion_stance(
 
 分析要求：
 1. 情绪分布：预测愤怒、恐惧、悲伤、惊讶、中性五种情绪的占比（总和=1）
-2. 立场分布：预测支持、质疑、中立三种立场的占比（总和=1）
+2. 立场分布：预测支持、反对、质疑、中立四种立场的占比（总和=1）
 3. 考虑因素：内容敏感度、是否有官方回应、证据充分性、平台用户特征
 4. 时间判断：结合当前时间判断内容中提及的时间是否合理，是否存在"旧闻新炒"或"未来预测"的情况
 
@@ -252,6 +252,7 @@ def _analyze_emotion_stance(
   }},
   "stance_distribution": {{
     "support": 0.0-1.0,
+    "oppose": 0.0-1.0,
     "doubt": 0.0-1.0,
     "neutral": 0.0-1.0
   }},
@@ -295,7 +296,7 @@ def _fallback_emotion_stance(
         anger, fear, surprise = 0.30, 0.25, 0.25
         neutral = 0.20
 
-    support, doubt, neutral_stance = 0.25, 0.45, 0.30
+    support, oppose, doubt, neutral_stance = 0.25, 0.15, 0.45, 0.15
 
     if report and report.risk_score >= 70:
         doubt = 0.55

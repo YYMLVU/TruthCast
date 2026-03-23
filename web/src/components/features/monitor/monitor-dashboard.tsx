@@ -12,6 +12,7 @@ import { toast } from '@/lib/toast';
 import { usePipelineStore } from '@/stores/pipeline-store';
 import type { MonitorAnalysisResult, MonitorScanWindowDetail, MonitorWindowItem } from '@/types';
 import { cn } from '@/lib/utils';
+import { zhRiskLabel, zhRiskLevel } from '@/lib/i18n';
 
 function statusTone(running: boolean) {
   return running ? 'bg-emerald-500/12 text-emerald-700 border-emerald-200/80' : 'bg-slate-500/12 text-slate-700 border-slate-200/80';
@@ -38,10 +39,10 @@ function analysisStageLabel(stage: string) {
   const map: Record<string, string> = {
     hot_item: '已入监测',
     crawl: '链接核查',
-    risk_snapshot: '风险快照',
+    risk_snapshot: '风险初判',
     report: '综合报告',
     simulation: '舆情预演',
-    content: '应对内容',
+    content: '公关响应',
     completed: '流程完成',
   };
   return map[stage] ?? stage;
@@ -68,6 +69,22 @@ function analysisStatusTone(status: string) {
   if (status === 'running') return 'border-sky-200 bg-sky-500/10 text-sky-700';
   if (status === 'failed') return 'border-rose-200 bg-rose-500/10 text-rose-700';
   return 'border-slate-200 bg-slate-500/10 text-slate-700';
+}
+
+function formatRiskAssessmentDisplay(score?: number | null, label?: string | null) {
+  if (score == null && !label) return '--';
+  const parts: string[] = [];
+  if (score != null) parts.push(`${score}分`);
+  if (label) parts.push(zhRiskLabel(label));
+  return parts.join(' / ');
+}
+
+function formatReportDisplay(score?: number | null, level?: string | null) {
+  if (score == null && !level) return '--';
+  const parts: string[] = [];
+  if (score != null) parts.push(`${score}分`);
+  if (level) parts.push(`${zhRiskLevel(level)}风险`);
+  return parts.join(' / ');
 }
 
 function formatWindowRange(start: string, end: string) {
@@ -185,7 +202,7 @@ function WindowNewsCard({
             )}
             {analysis?.risk_snapshot_score != null ? (
               <Badge variant={riskVariant(analysis.risk_snapshot_score)}>
-                快照 {analysis.risk_snapshot_score}
+                初判 {analysis.risk_snapshot_score}
               </Badge>
             ) : null}
             {analysis ? (
@@ -219,17 +236,18 @@ function WindowNewsCard({
 
           <div className="grid gap-2 md:grid-cols-3">
             <div className="rounded-2xl bg-[color:var(--panel-soft)]/72 px-3 py-3 text-sm">
-              <div className="text-xs uppercase tracking-[0.16em] text-[color:var(--muted-strong)]">风险快照</div>
+              <div className="text-xs uppercase tracking-[0.16em] text-[color:var(--muted-strong)]">风险初判</div>
               <div className="mt-1 font-medium text-foreground">
-                {analysis?.risk_snapshot_score ?? '--'}
-                {analysis?.risk_snapshot_label ? ` / ${analysis.risk_snapshot_label}` : ''}
+                {formatRiskAssessmentDisplay(
+                  analysis?.risk_snapshot_score,
+                  analysis?.risk_snapshot_label
+                )}
               </div>
             </div>
             <div className="rounded-2xl bg-[color:var(--panel-soft)]/72 px-3 py-3 text-sm">
               <div className="text-xs uppercase tracking-[0.16em] text-[color:var(--muted-strong)]">综合报告</div>
               <div className="mt-1 font-medium text-foreground">
-                {analysis?.report_score ?? '--'}
-                {analysis?.report_level ? ` / ${analysis.report_level}` : ''}
+                {formatReportDisplay(analysis?.report_score, analysis?.report_level)}
               </div>
             </div>
             <div className="rounded-2xl bg-[color:var(--panel-soft)]/72 px-3 py-3 text-sm">
@@ -288,7 +306,7 @@ function WindowNewsCard({
             onClick={() => analysis && onOpenAnalysis(analysis, '/content')}
           >
             <ExternalLink className="mr-2 h-4 w-4" />
-            {analysis?.content_generation_status === 'done' ? '查看应对内容' : '生成应对内容'}
+            {analysis?.content_generation_status === 'done' ? '查看公关响应' : '生成公关响应'}
           </Button>
         </div>
       </div>

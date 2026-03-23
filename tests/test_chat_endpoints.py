@@ -180,7 +180,8 @@ def test_chat_session_stream_ambiguous_text_returns_clarify_message() -> None:
         assert "当前意图还不够明确" in content
         assert "完整分析" in content
         assert "单技能" in content
-        assert "主张/证据/对齐/报告/预演/应对内容" in content
+        assert "做完整分析（风险初判->主张->证据->对齐->报告）" in content
+        assert "主张/证据/对齐/报告/预演/公关响应" in content
 
 
 def test_chat_sessions_crud_smoke() -> None:
@@ -728,7 +729,7 @@ def test_content_generate_outputs_summary_and_persists_content_phase(monkeypatch
         assert resp_content.status_code == 200
         raw = "".join(list(resp_content.iter_text()))
 
-    assert "【应对内容生成结果】" in raw
+    assert "【公关响应生成结果】" in raw
     assert "[澄清稿] 3 个版本" in raw
     assert "[FAQ] 1 条" in raw
     assert "[平台话术] 2 条" in raw

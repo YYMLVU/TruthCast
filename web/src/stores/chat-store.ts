@@ -75,7 +75,7 @@ export const useChatStore = create<ChatState>((set) => ({
       actions: [
         { type: 'link', label: '打开检测结果', href: '/result' },
         { type: 'link', label: '打开舆情预演', href: '/simulation' },
-        { type: 'link', label: '打开应对内容', href: '/content' },
+        { type: 'link', label: '打开公关响应', href: '/content' },
         { type: 'command', label: '重试失败阶段', command: '/retry_failed' },
       ],
     },

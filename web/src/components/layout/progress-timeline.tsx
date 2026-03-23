@@ -27,16 +27,16 @@ interface PhaseState {
 }
 
 const phaseLabels: Record<Phase, string> = {
-  detect: '风险快照',
+  detect: '风险初判',
   claims: '主张抽取',
   evidence: '证据检索',
   report: '综合报告',
   simulation: '舆情预演',
-  content: '应对内容',
+  content: '公关响应',
 };
 
 const phaseShortLabels: Record<Phase, string> = {
-  detect: '快照',
+  detect: '初判',
   claims: '主张',
   evidence: '证据',
   report: '报告',

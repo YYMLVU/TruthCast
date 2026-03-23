@@ -7,7 +7,7 @@ import type {
   SimulateResponse,
   DetectResponse,
 } from '@/types';
-import { zhRiskLabel, zhRiskLevel, zhScenario, zhDomain, zhStance, zhSourceType, zhText } from './i18n';
+import { zhRiskLabel, zhRiskLevel, zhScenario, zhDomain, zhStance, zhSimulationStance, zhSourceType, zhText } from './i18n';
 
 export interface ExportData {
   inputText: string;
@@ -84,9 +84,9 @@ function generateMarkdown(data: ExportData): string {
     lines.push('');
   }
 
-  // 风险快照
+  // 风险初判
   if (data.detectData) {
-    lines.push('## 风险快照');
+    lines.push('## 风险初判');
     lines.push('');
     lines.push(`| 项目 | 值 |`);
     lines.push(`|------|-----|`);
@@ -295,7 +295,7 @@ function generateMarkdown(data: ExportData): string {
       lines.push('| 立场 | 占比 |');
       lines.push('|------|------|');
       stances.forEach(([k, v]) => {
-        lines.push(`| ${k} | ${(v * 100).toFixed(1)}% |`);
+        lines.push(`| ${zhSimulationStance(k)} | ${(v * 100).toFixed(1)}% |`);
       });
       lines.push('');
     }
@@ -306,7 +306,7 @@ function generateMarkdown(data: ExportData): string {
       lines.push('');
       data.simulation.narratives.forEach((n, i) => {
         lines.push(`${i + 1}. **${zhText(n.title)}** (${(n.probability * 100).toFixed(0)}%)`);
-        lines.push(`   - 立场: ${n.stance}`);
+        lines.push(`   - 立场: ${zhSimulationStance(n.stance)}`);
         lines.push(`   - 触发词: ${n.trigger_keywords.join(', ') || '无'}`);
         lines.push(`   - 代表言论: ${zhText(n.sample_message)}`);
         lines.push('');
@@ -347,7 +347,7 @@ function generateMarkdown(data: ExportData): string {
   // 应对内容（澄清稿/FAQ/平台话术）
   // 放置在“舆情预演 → 应对建议”之后，便于阅读：先看风险/证据/报告/预演，再看可直接使用的应对话术
   if (data.content) {
-    lines.push('## 应对内容');
+    lines.push('## 公关响应');
     lines.push('');
 
     const primary = resolvePrimaryClarification(data.content);

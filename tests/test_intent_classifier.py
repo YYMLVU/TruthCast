@@ -113,8 +113,10 @@ def test_classify_intent_simulate_samples(text: str):
 @pytest.mark.parametrize(
     "text",
     [
+        "生成公关响应",
         "生成应对内容",
         "写澄清稿",
+        "公关响应给我",
         "应对内容给我",
         "做一份澄清稿",
         "生成声明",
@@ -143,6 +145,7 @@ def test_classify_intent_content_samples(text: str):
         ("和之前对比一下", "compare"),
         ("深入分析证据", "deep_dive"),
         ("详细看看证据来源", "deep_dive"),
+        ("生成公关响应", "content"),
         ("生成应对内容", "content"),
         ("写一份澄清稿", "content"),
         ("补充一些证据", "more_evidence"),
@@ -223,7 +226,7 @@ def test_build_suggested_actions_why_high_risk():
     assert len(actions) >= 1
     action_labels = [a.get("label") for a in actions]
     assert any("深入分析证据" in str(label) for label in action_labels)
-    assert any("生成应对内容" in str(label) for label in action_labels)
+    assert any("生成公关响应" in str(label) for label in action_labels)
 
 
 def test_build_suggested_actions_why_low_risk():
@@ -482,7 +485,7 @@ def test_parse_tool_content_show_routes_to_show_operation():
 def test_parse_tool_content_generate_natural_language_without_payload_does_not_set_text():
     from app.services.chat_orchestrator import parse_tool
 
-    tool, args = parse_tool("继续生成应对内容")
+    tool, args = parse_tool("继续生成公关响应")
     assert tool == "content_generate"
     assert (args.get("text") or "") == ""
 
@@ -490,7 +493,7 @@ def test_parse_tool_content_generate_natural_language_without_payload_does_not_s
 def test_parse_tool_content_generate_natural_language_with_payload_sets_text():
     from app.services.chat_orchestrator import parse_tool
 
-    tool, args = parse_tool("帮我生成应对内容：这是一段需要生成应对内容的新闻正文，长度足够触发正文提取。")
+    tool, args = parse_tool("帮我生成公关响应：这是一段需要生成公关响应的新闻正文，长度足够触发正文提取。")
     assert tool == "content_generate"
     assert "新闻正文" in str(args.get("text") or "")
 
