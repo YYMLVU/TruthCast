@@ -253,7 +253,8 @@ function WindowNewsCard({
             <div className="rounded-2xl bg-[color:var(--panel-soft)]/72 px-3 py-3 text-sm">
               <div className="text-xs uppercase tracking-[0.16em] text-[color:var(--muted-strong)]">链接核查</div>
               <div className="mt-1 font-medium text-foreground">
-                {analysis?.crawl_status ?? analysisStatusLabel(item.analysis_status)}
+                {/* {analysis?.crawl_status ?? analysisStatusLabel(item.analysis_status)} */}
+                {analysisStatusLabel(analysis?.crawl_status || item.analysis_status)}
               </div>
             </div>
           </div>

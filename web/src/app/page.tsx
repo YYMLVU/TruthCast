@@ -249,7 +249,7 @@ export default function HomePage() {
                 </div>
                 <CardTitle className="text-2xl md:text-[2rem]">开始一次研判任务</CardTitle>
                 <CardDescription>
-                  支持文本核查、链接抓取与图片多模态分析。这里保持原有工作流，但会把最重要的输入入口放在同一张一级卡中。
+                  支持文本核查、链接抓取与图片多模态分析。
                 </CardDescription>
               </div>
               <div className="rounded-[1.25rem] border border-white/70 bg-[color:var(--panel-strong)] px-4 py-3 text-[color:var(--panel-strong-foreground)] shadow-[0_18px_36px_rgba(24,53,76,0.22)]">
@@ -547,25 +547,31 @@ export default function HomePage() {
                   <div
                     key={role.title}
                     style={{ zIndex: 10 - idx }}
-                    className="relative flex-1 group/card min-w-[6.25rem] rounded-[1.25rem] border border-white/70 bg-gradient-to-br from-white/95 to-white/75 backdrop-blur-xl shadow-[4px_4px_24px_rgba(26,54,78,0.05)] transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:flex-[5] hover:bg-white hover:!z-[60] hover:shadow-[0_20px_40px_rgba(26,54,78,0.12)] hover:-translate-y-2 xl:-ml-4 first:ml-0 overflow-hidden"
+                    className="relative flex-1 group/card min-w-[6.5rem] rounded-[1.25rem] border border-white/70 bg-gradient-to-br from-white/95 to-white/75 backdrop-blur-xl shadow-[4px_4px_24px_rgba(26,54,78,0.05)] transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:flex-[5] hover:bg-white hover:!z-[60] hover:shadow-[0_20px_40px_rgba(26,54,78,0.12)] hover:-translate-y-2 xl:-ml-4 first:ml-0 overflow-hidden"
                   >
                     {/* 左侧可折叠区域：绝对定位并限制右侧边界避免与竖排文字重叠 */}
-                    <div className="absolute left-4 top-4 bottom-4 right-10 transition-opacity duration-300 flex flex-col justify-start pointer-events-none group-hover/card:pointer-events-auto overflow-hidden">
+                    <div className="absolute left-4 top-5 bottom-4 right-10 transition-opacity duration-300 flex flex-col justify-start pointer-events-none group-hover/card:pointer-events-auto overflow-hidden">
                       <div className="flex items-center gap-2 mb-3 shrink-0">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                        {/* <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
                           <role.icon className="h-3.5 w-3.5 text-primary" />
-                        </div>
-                        <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">智能体角色</span>
+                        </div> */}
+                        {/* <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">智能体角色</span> */}
                       </div>
-                      <p className="text-[12px] leading-relaxed text-muted-foreground line-clamp-5">
+                      <p className="text-[14px] leading-relaxed text-muted-foreground line-clamp-5">
                         {role.description}
                       </p>
                     </div>
 
                     {/* 右侧常驻竖排文字：固定靠右 */}
-                    <div className="absolute right-2 top-5 bottom-4 flex flex-col items-center justify-start pointer-events-none">
+                    <div className="absolute right-2 top-3 bottom-4 flex flex-col items-center justify-start pointer-events-none">
+                      <div
+                        className="flex size-5 items-center justify-center rounded-full bg-primary/8 text-primary mb-2 ml-1"
+                        style={{ writingMode: 'vertical-rl' }}
+                      >
+                        {role.icon && <role.icon className="h-3.5 w-3.5" />}
+                      </div>
                       <div 
-                        className="text-[12px] font-bold tracking-[0.3em] text-foreground transition-colors group-hover/card:text-primary"
+                        className="text-[15px] font-bold tracking-[0.3em] text-foreground transition-colors group-hover/card:text-primary"
                         style={{ writingMode: 'vertical-rl' }}
                       >
                         {role.title}
@@ -574,7 +580,7 @@ export default function HomePage() {
                         —
                       </div>
                       <div 
-                        className="text-[11px] font-semibold tracking-[0.2em] text-[color:var(--muted-strong)]"
+                        className="text-[13px] font-semibold tracking-[0.2em] text-[color:var(--muted-strong)]"
                         style={{ writingMode: 'vertical-rl' }}
                       >
                         {role.accent}
