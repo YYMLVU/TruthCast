@@ -238,7 +238,7 @@ export default function HomePage() {
         }
       />
 
-      <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+      <div className="grid gap-6 xl:grid-cols-[1.3fr_1fr]">
         <Card className="overflow-hidden border-white/70 bg-[linear-gradient(160deg,rgba(255,255,255,0.84),rgba(244,249,252,0.82))]">
           <CardHeader className="border-b border-border/60 pb-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -542,25 +542,44 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <div className="group flex flex-col xl:flex-row w-full h-auto xl:h-[11.5rem] py-2 mt-2">
+              <div className="group flex flex-col xl:flex-row w-full h-auto xl:h-[13.5rem] py-2 mt-2">
                 {roleStories.map((role, idx) => (
                   <div
                     key={role.title}
-                    className="relative flex-1 group/card min-w-[5rem] rounded-[1.25rem] border border-white/70 bg-gradient-to-br from-white/95 to-white/75 backdrop-blur-xl p-4 xl:p-4 shadow-[4px_4px_24px_rgba(26,54,78,0.05)] transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:flex-[4] hover:bg-white hover:!z-[60] hover:shadow-[0_20px_40px_rgba(26,54,78,0.12)] hover:-translate-y-2 xl:-ml-6 first:ml-0 overflow-hidden"
+                    style={{ zIndex: 10 - idx }}
+                    className="relative flex-1 group/card min-w-[6.25rem] rounded-[1.25rem] border border-white/70 bg-gradient-to-br from-white/95 to-white/75 backdrop-blur-xl shadow-[4px_4px_24px_rgba(26,54,78,0.05)] transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] hover:flex-[5] hover:bg-white hover:!z-[60] hover:shadow-[0_20px_40px_rgba(26,54,78,0.12)] hover:-translate-y-2 xl:-ml-4 first:ml-0 overflow-hidden"
                   >
-                    <div className="flex items-center justify-between opacity-90 transition-opacity duration-300 group-hover/card:opacity-100">
-                      <div className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.1em] text-[color:var(--muted-strong)] whitespace-nowrap">
-                        <role.icon className="h-3.5 w-3.5 shrink-0 text-primary transition-transform duration-500 group-hover/card:scale-110" />
-                        <span className="truncate">{role.accent}</span>
+                    {/* 左侧可折叠区域：绝对定位并限制右侧边界避免与竖排文字重叠 */}
+                    <div className="absolute left-4 top-4 bottom-4 right-10 transition-opacity duration-300 flex flex-col justify-start pointer-events-none group-hover/card:pointer-events-auto overflow-hidden">
+                      <div className="flex items-center gap-2 mb-3 shrink-0">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                          <role.icon className="h-3.5 w-3.5 text-primary" />
+                        </div>
+                        <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">智能体角色</span>
                       </div>
-                      <div className="text-[10px] text-muted-foreground hidden sm:block shrink-0 ml-2">智能体角色</div>
+                      <p className="text-[12px] leading-relaxed text-muted-foreground line-clamp-5">
+                        {role.description}
+                      </p>
                     </div>
-                    <div className="mt-3 xl:mt-3 text-[14px] font-semibold text-foreground transition-colors duration-300 group-hover/card:text-primary whitespace-nowrap">
-                      {role.title}
+
+                    {/* 右侧常驻竖排文字：固定靠右 */}
+                    <div className="absolute right-2 top-5 bottom-4 flex flex-col items-center justify-start pointer-events-none">
+                      <div 
+                        className="text-[12px] font-bold tracking-[0.3em] text-foreground transition-colors group-hover/card:text-primary"
+                        style={{ writingMode: 'vertical-rl' }}
+                      >
+                        {role.title}
+                      </div>
+                      <div className="my-1.5 text-muted-foreground/30" style={{ writingMode: 'vertical-rl' }}>
+                        —
+                      </div>
+                      <div 
+                        className="text-[11px] font-semibold tracking-[0.2em] text-[color:var(--muted-strong)]"
+                        style={{ writingMode: 'vertical-rl' }}
+                      >
+                        {role.accent}
+                      </div>
                     </div>
-                    <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground line-clamp-3 group-hover/card:line-clamp-none min-w-[12rem] xl:min-w-0">
-                      {role.description}
-                    </p>
                   </div>
                 ))}
               </div>
