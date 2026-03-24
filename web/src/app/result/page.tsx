@@ -317,7 +317,7 @@ export default function ResultPage() {
 
       <PageSection
         title="综合报告"
-        description="把主张与证据看完之后，再回到最终综合判断，适合作为结果页的收束区。"
+        // description="把主张与证据看完之后，再回到最终综合判断，适合作为结果页的收束区。"
         actions={
           <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/74 px-3 py-1.5 text-xs font-medium text-[color:var(--muted-strong)] shadow-[0_10px_24px_rgba(26,54,78,0.06)]">
             <ShieldCheck className="h-3.5 w-3.5 text-primary" />
