@@ -1,25 +1,40 @@
-# TruthCast (明察) - 全链路事实核查与舆情推演系统
+# TruthCast (明察) - 面向事实核查与舆情预演的全链路智能体系统
 
-**TruthCast (明察)** 是一个集成了**虚假新闻检测**与**舆情预演**的智能体系统。它通过大语言模型（LLM）与规则引擎的深度结合，实现从文本风险初筛、核心主张抽取、多引擎联网检索、证据聚合对齐，到最终生成综合核查报告与舆情演化预测的全链路自动化分析。
+**TruthCast (明察)** 是一个将**事实核查**、**舆情预演**与**公关响应生成**串成闭环的智能体系统。它基于大语言模型（LLM）与多智能体系统协同工作，把一段待核查文本拆解为可验证主张，完成联网检索、证据聚合与对齐，生成综合研判报告，并进一步预测舆情演化路径与应对策略。
+
+它的重点不是只给出一个“真假判断”，而是把“为什么这样判断”“证据来自哪里”“如果继续传播会怎样”都显式展示出来，并进一步给出了公关响应建议。
 
 ## 🌟 核心特性 (Advantage)
 
-- **🤖 Agent 自主策略**: 动态感知文本复杂度以决定主张抽取数量，基于风险分数动态调整证据检索深度，LLM 自主决定证据聚合策略。
+- **🤖 Agent 自主策略**:
+  - 动态感知文本复杂度以决定主张抽取数量。
+  - 基于风险分数动态调整证据检索深度。
+  - 由 LLM 自主决定证据聚合粒度，在固定工作流中实现轻量策略选择。
 - **🔍 深度事实核查**:
   - **风险初判**: 快速评估文本可信度与潜在风险。
   - **主张抽取**: 将复杂长文本拆解为原子化、可核查的核心主张。
   - **混合检索**: 支持 Bocha（博查）、SearXNG、Tavily、SerpAPI 等多引擎联网检索。
   - **证据聚合与对齐**: LLM 驱动的证据归纳，逐条主张与证据进行立场对齐（支持/反对/证据不足）并给出置信度。
+  - **可解释报告**: 输出场景识别、证据覆盖域、对齐理由与最终风险提示，而非仅给单点结论。
 - **📈 舆情演化预演**:
   - **四阶段预测**: 情绪与立场分析 → 叙事分支生成 → 引爆点识别 → 应对建议生成。
   - **流式输出**: 支持 SSE (Server-Sent Events) 流式返回预演结果，提升前端响应体验。
+  - **结构化建议**: 输出优先级、责任方、时间线与行动项，便于直接展示和落地。
 - **📝 公关响应生成**:
   - 支持生成 **澄清稿（短/中/长）**、**FAQ**、以及 **多平台话术**（微博/微信公众号/小红书/抖音/快手/B站/短视频口播/新闻通稿/官方声明）。
-  - 支持澄清稿 **多风格多版本并存**，并可设置“主稿”（影响导出与历史默认版本）。
+  - 与核查结果和舆情预演联动，避免“先生成内容、后寻找依据”。
 - **🛡️ 高可用与稳定性**:
   - **规则兜底**: 所有 LLM 节点（抽取、对齐、预演等）均配备规则回退机制，确保在 LLM 失败或超时时系统依然可用。
   - **JSON 自动修复**: 内置 `json-repair` 机制，增强对 LLM 非标准 JSON 输出的解析鲁棒性。
-- **💻 现代化控制台**: 基于 Next.js 16 + Tailwind CSS 4 + shadcn/ui 构建的响应式前端，支持实时进度、历史记录回放、证据视图切换与报告导出（结果页/预演页/公关响应页均支持导出 JSON/Markdown）。
+  - **阶段级恢复**: 支持阶段状态持久化、刷新恢复、任务回放与错误重试。
+- **💻 现代化控制台**:
+  - 基于 Next.js 16 + Tailwind CSS 4 + shadcn/ui 构建的响应式前端。
+  - 支持实时进度、历史记录回放、证据视图切换、报告导出、移动端适配。
+  - 结果页、预演页、公关响应页均支持导出 JSON/Markdown。
+
+## 🌐 在线体验
+
+  - Web 控制台: [http://38.226.195.121:3000/](http://38.226.195.121:3000/)
 
 ## 🖼️ 界面截图
 
@@ -64,36 +79,46 @@
 ```
 TruthCast/
 ├── app/                      # 后端服务
-│   ├── api/                  # API 路由
-│   ├── core/                 # 核心配置与日志
-│   ├── orchestrator/         # Agent 编排引擎
+│   ├── api/                  # API 路由（detect/simulate/content/history/chat/monitor 等）
+│   │   └── chat/             # 对话工作台路由与 SSE 编排
+│   ├── cli/                  # Typer 命令行入口与子命令
+│   │   ├── commands/
+│   │   └── lib/
+│   ├── core/                 # 环境加载、认证、限流、并发、日志等基础设施
+│   ├── orchestrator/         # Agent 编排引擎与注册容器
 │   ├── schemas/              # Pydantic 数据模型
-│   ├── services/             # 业务逻辑
-│   │   ├── claim_extraction.py      # 主张抽取
-│   │   ├── evidence_alignment.py    # 证据对齐
-│   │   ├── evidence_summarization.py # 证据聚合
-│   │   ├── content_generation/      # 公关响应生成（澄清稿/FAQ/多平台话术）
-│   │   ├── history_store.py         # 历史记录
-│   │   ├── json_utils.py            # JSON 工具
-│   │   ├── opinion_simulation.py    # 舆情预演
-│   │   ├── pipeline.py              # 分析流水线
-│   │   ├── report_generation.py     # 报告生成
-│   │   ├── risk_snapshot.py         # 风险初判
-│   │   ├── text_complexity.py       # 文本复杂度分析
-│   │   └── web_retrieval.py         # 联网检索
+│   ├── services/             # 核心业务逻辑
+│   │   ├── content_generation/  # 公关响应生成
+│   │   ├── monitor/             # 监测台存储、调度、预警
+│   │   ├── multimodal/          # 多模态分析相关服务
+│   │   └── url_extraction/      # 链接抓取与正文抽取
 │   └── skills/               # Agent 技能
-├── web/                      # 前端（Next.js）
+├── config/                   # 配置文件
+├── data/                     # 本地运行数据
+│   ├── chat/                 # 对话工作台数据库
+│   ├── history/              # 历史记录数据库
+│   ├── kb/                   # 知识库/证据数据
+│   ├── monitor/              # 监测台数据
+│   └── uploads/              # 上传文件
+├── debug/                    # 各阶段 trace 与调试日志
+├── docs/                     # 项目文档与 README 截图资源
+│   ├── images/
+│   └── superpowers/
+├── plans/                    # 规划与方案文件
+├── scripts/                  # 辅助脚本
+├── tests/                    # 测试文件
+├── web/                      # 前端控制台（Next.js）
+│   ├── public/               # 静态资源
 │   ├── src/
 │   │   ├── app/              # 页面路由
-│   │   ├── components/       # UI 组件
-│   │   ├── stores/           # Zustand 状态
-│   │   ├── services/         # API 服务
-│   │   ├── lib/              # 工具函数
+│   │   ├── components/       # UI 与业务组件
+│   │   ├── hooks/            # 自定义 hooks
+│   │   ├── lib/              # 工具函数与 i18n 映射
+│   │   ├── services/         # API 服务层
+│   │   ├── stores/           # Zustand 状态管理
 │   │   └── types/            # TypeScript 类型
-│   └── ...
-├── tests/                    # 测试文件
-├── docs/                     # 文档
-└── debug/                    # 调试日志
+│   └── .env.example          # 前端环境变量示例
+└── pyproject.toml            # 后端包配置与 CLI 入口
 ```
 
 ## 🚀 部署方案 (Deployment Options)
@@ -208,34 +233,6 @@ TRUTHCAST_CHAT_DB_PATH=data/chat/chat.db
 
 ---
 
-### 方案三：云平台分离部署 (Vercel + Render/Railway)
-
-适合希望将前端托管在 CDN，后端托管在 Serverless 平台的场景。
-
-#### 1. 部署后端 (Render / Railway / Zeabur)
-
-1. 在云平台连接你的 GitHub 仓库。
-2. 设置根目录为 `/`。
-3. 构建命令: `pip install -e .`
-4. 启动命令: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-5. 在云平台的环境变量设置中，填入 `.env` 中的所有必需配置（如 `TRUTHCAST_LLM_API_KEY`），并额外确认以下安全变量：
-   - `TRUTHCAST_CORS_ORIGINS` = 你的前端公网域名（多个域名用逗号分隔）
-   - `TRUTHCAST_API_KEY` = 生产环境建议设置
-   - `TRUTHCAST_RATE_LIMIT_RPM` = 按你的访问量调整，默认 `60`
-   - `TRUTHCAST_SSRF_BLOCK_PRIVATE` = 建议保持 `true`
-6. 部署成功后，获取后端的公网 URL（例如 `https://truthcast-api.onrender.com`）。
-
-#### 2. 部署前端 (Vercel / Netlify)
-
-1. 在 Vercel 中导入你的 GitHub 仓库。
-2. 设置 **Root Directory** 为 `web`。
-3. 框架预设选择 **Next.js**。
-4. 在 **Environment Variables** 中添加:
-   - `NEXT_PUBLIC_API_BASE` = `你的后端公网 URL` (例如 `https://truthcast-api.onrender.com`)
-5. 点击 Deploy 进行部署。
-
----
-
 ## ⚙️ 核心配置说明
 
 项目通过根目录的 `.env` 文件进行全局配置。系统支持高度定制化，你可以通过开关控制各个模块是使用 LLM 还是回退到规则引擎。
@@ -263,172 +260,435 @@ TRUTHCAST_SSRF_BLOCK_PRIVATE=true
 - 限流命中时后端会返回 `429` 并附带 `Retry-After`；未命中限流的正常响应会附带 `X-RateLimit-Limit`、`X-RateLimit-Remaining` 响应头。
 - SSRF 防护会影响用户输入 URL 的抓取类能力；如确需抓取内网地址，只建议在受信任的内网环境下临时关闭。
 
-### 2. 基础与 LLM 配置
+### 2. 基础与全局 LLM 配置
+
+以下配置是多数模块的公共基础。若模块级模型未单独指定，默认回退到这里的全局配置。
 
 ```ini
 # 基础配置
+APP_NAME=TruthCast MVP
+APP_ENV=dev
 LOG_LEVEL=INFO
-TRUTHCAST_HISTORY_DB_PATH=data/history/truthcast.db  # 历史记录 SQLite 数据库路径
 
-# 全局 LLM 配置 (所有模块默认使用此配置)
-TRUTHCAST_LLM_API_KEY=your_api_key_here
+# 前端访问后端的基础地址
+NEXT_PUBLIC_API_BASE=http://127.0.0.1:8000
+
+# 全局 LLM 开关与默认配置
+TRUTHCAST_LLM_ENABLED=false
 TRUTHCAST_LLM_BASE_URL=https://api.openai.com/v1
 TRUTHCAST_LLM_MODEL=gpt-4o-mini
+TRUTHCAST_LLM_API_KEY=
+TRUTHCAST_LLM_TIMEOUT=60
+TRUTHCAST_DEBUG_LLM=true
+
+# 持久化与输入限制
+TRUTHCAST_HISTORY_DB_PATH=
+TRUTHCAST_MAX_INPUT_CHARS=8000
 ```
 
-### 3. 联网检索配置 (Web Retrieval)
+### 3. 主张抽取、风险快照与复杂度分析
 
-系统支持多种搜索引擎，通过 `TRUTHCAST_WEB_SEARCH_PROVIDER` 切换：
+这组配置决定了系统如何拆解文本、是否启用 LLM 辅助，以及如何控制主张规模。
 
 ```ini
-# 可选值: bocha (博查), searxng, tavily, serpapi, baidu
+# Claim 抽取
+TRUTHCAST_CLAIM_METHOD=claimify
+TRUTHCAST_EXTRACTION_LLM_MODEL=
+TRUTHCAST_CLAIM_MAX_ITEMS=8
+TRUTHCAST_CLAIM_MIN_SCORE=0.25
+
+# 风险快照
+TRUTHCAST_RISK_LLM_ENABLED=false
+TRUTHCAST_RISK_LLM_MODEL=
+TRUTHCAST_DEBUG_RISK_SNAPSHOT=true
+
+# 文本复杂度分析
+TRUTHCAST_COMPLEXITY_LLM_ENABLED=false
+TRUTHCAST_COMPLEXITY_LLM_MODEL=
+TRUTHCAST_DEBUG_COMPLEXITY=false
+```
+
+说明：
+
+- `TRUTHCAST_CLAIM_METHOD` 决定主张抽取策略，默认值为 `claimify`。
+- `TRUTHCAST_CLAIM_MAX_ITEMS` 与 `TRUTHCAST_CLAIM_MIN_SCORE` 用于控制输出数量和质量门槛。
+- 风险快照与复杂度分析都支持独立 LLM 开关，关闭时自动回退到规则路径。
+
+### 4. 联网检索、证据摘要与证据对齐
+
+这一组配置决定了系统如何检索外部证据，以及如何做证据压缩与对齐。
+
+```ini
+# 联网检索总开关
+TRUTHCAST_WEB_RETRIEVAL_ENABLED=true
+TRUTHCAST_WEB_RETRIEVAL_TOPK=10
+TRUTHCAST_WEB_RETRIEVAL_TIMEOUT_SEC=8
+TRUTHCAST_DEBUG_WEB_RETRIEVAL=true
+
+# 搜索 Provider 选择: baidu | bocha | searxng | tavily | serpapi
 TRUTHCAST_WEB_SEARCH_PROVIDER=bocha
+TRUTHCAST_WEB_ALLOWED_DOMAINS=
 
-# ------------------------------------------
-# 博查 (Bocha) 配置 - 推荐国内使用，专为 AI 优化
-# ------------------------------------------
-TRUTHCAST_BOCHA_API_KEY=your_bocha_api_key
+# 博查（推荐国内使用）
+TRUTHCAST_BOCHA_API_KEY=
 TRUTHCAST_BOCHA_ENDPOINT=https://api.bochaai.com/v1/web-search
-TRUTHCAST_BOCHA_FRESHNESS=oneYear  # 可选: noLimit, oneDay, oneWeek, oneMonth, oneYear
-TRUTHCAST_BOCHA_SUMMARY=true       # 是否返回网页摘要
+TRUTHCAST_BOCHA_FRESHNESS=oneYear
+TRUTHCAST_BOCHA_SUMMARY=true
 
-# ------------------------------------------
-# SearXNG 配置 - 开源免费元搜索引擎，无需 API Key
-# ------------------------------------------
+# SearXNG
 TRUTHCAST_SEARXNG_ENDPOINT=https://searx.be/search
 TRUTHCAST_SEARXNG_ENGINES=google,bing,duckduckgo
-TRUTHCAST_SEARXNG_CATEGORIES=general,news
+TRUTHCAST_SEARXNG_CATEGORIES=
 TRUTHCAST_SEARXNG_LANGUAGE=zh-CN
 
-# ------------------------------------------
-# Tavily 配置 - 专为 AI Agent 设计的搜索引擎
-# ------------------------------------------
-TRUTHCAST_TAVILY_API_KEY=your_tavily_api_key
-TRUTHCAST_TAVILY_SEARCH_DEPTH=basic  # 可选: basic, advanced
-TRUTHCAST_TAVILY_INCLUDE_DOMAINS=    # 限制搜索的域名，逗号分隔
-TRUTHCAST_TAVILY_EXCLUDE_DOMAINS=    # 排除搜索的域名，逗号分隔
-
-# ------------------------------------------
-# SerpAPI 配置 - Google 搜索结果抓取
-# ------------------------------------------
-TRUTHCAST_SERPAPI_API_KEY=your_serpapi_api_key
-TRUTHCAST_SERPAPI_ENGINE=google
-TRUTHCAST_SERPAPI_GL=cn              # 国家/地区代码
-TRUTHCAST_SERPAPI_HL=zh-cn           # 语言代码
-
-# ------------------------------------------
-# 百度 (Baidu) 配置 - 通过 QNAIGC 代理
-# ------------------------------------------
-TRUTHCAST_BAIDU_API_KEY=your_baidu_api_key
+# 百度
+TRUTHCAST_BAIDU_API_KEY=
 TRUTHCAST_BAIDU_ENDPOINT=https://api.qnaigc.com/v1/search/web
-TRUTHCAST_BAIDU_TIME_FILTER=1y       # 可选: 1d, 1w, 1m, 1y
-TRUTHCAST_BAIDU_SITE_FILTER=         # 限制搜索的站点，如 gov.cn
-```
+TRUTHCAST_BAIDU_TIME_FILTER=year
+TRUTHCAST_BAIDU_SITE_FILTER=
 
-### 4. 核心功能开关与独立模型配置
+# Tavily / SerpAPI
+TRUTHCAST_TAVILY_API_KEY=
+TRUTHCAST_TAVILY_ENDPOINT=https://api.tavily.com/search
+TRUTHCAST_SERPAPI_API_KEY=
+TRUTHCAST_SERPAPI_ENDPOINT=https://serpapi.com/search.json
 
-每个核心模块都可以独立开启/关闭 LLM，并支持配置独立的模型（如果不配置，则回退使用全局 `TRUTHCAST_LLM_MODEL`）。
-
-```ini
-# ------------------------------------------
-# 风险初判 (Risk Snapshot)
-# ------------------------------------------
-TRUTHCAST_RISK_LLM_ENABLED=true
-TRUTHCAST_RISK_LLM_MODEL=gpt-4o-mini
-
-# ------------------------------------------
-# 主张抽取 (Claim Extraction)
-# ------------------------------------------
-TRUTHCAST_CLAIM_LLM_ENABLED=true
-TRUTHCAST_CLAIM_LLM_MODEL=gpt-4o-mini
-TRUTHCAST_CLAIM_MAX_ITEMS=5        # 限制单次抽取的最大主张数
-TRUTHCAST_CLAIM_MIN_SCORE=0.5      # 主张可核查性最低分数阈值
-
-# ------------------------------------------
-# 证据聚合 (Evidence Summarization)
-# ------------------------------------------
-TRUTHCAST_EVIDENCE_SUMMARY_ENABLED=true
-TRUTHCAST_EVIDENCE_SUMMARY_LLM_MODEL=gpt-4o-mini
-TRUTHCAST_EVIDENCE_SUMMARY_MAX_ITEMS=3  # 聚合后输出的最大证据数
-
-# ------------------------------------------
-# 证据对齐 (Evidence Alignment)
-# ------------------------------------------
-TRUTHCAST_ALIGNMENT_LLM_ENABLED=true
-TRUTHCAST_ALIGNMENT_LLM_MODEL=gpt-4o-mini
-
-# ------------------------------------------
-# 舆情预演 (Opinion Simulation)
-# ------------------------------------------
-TRUTHCAST_SIMULATION_LLM_ENABLED=true
-TRUTHCAST_SIMULATION_LLM_MODEL=gpt-4o
-TRUTHCAST_SIMULATION_MAX_NARRATIVES=3   # 生成的叙事分支数量
-TRUTHCAST_SIMULATION_MAX_RETRIES=2      # LLM 调用失败重试次数
-
-# ------------------------------------------
-# 公关响应生成 (Content Generation)
-# ------------------------------------------
-TRUTHCAST_CONTENT_LLM_ENABLED=true
-TRUTHCAST_CONTENT_LLM_MODEL=gpt-4o-mini
-TRUTHCAST_CONTENT_TIMEOUT_SEC=45
-```
-
-### 5. 并发与性能配置
-
-```ini
-# 报告生成阶段的并发控制
-TRUTHCAST_CLAIM_PARALLEL_WORKERS=3      # 并行处理的主张数量
-TRUTHCAST_ALIGN_PARALLEL_WORKERS=4      # 单个主张内并行对齐的证据数量
-```
-
-### 6. 调试与日志 (Debug Traces)
-
-开启后，系统会在 `debug/` 目录下生成详细的 JSONL 追踪日志，记录 LLM 的完整 Prompt、响应和耗时，非常适合开发调试。
-
-```ini
-TRUTHCAST_DEBUG_RISK_SNAPSHOT=true
-TRUTHCAST_DEBUG_COMPLEXITY=true
-TRUTHCAST_DEBUG_CLAIMIFY=true
-TRUTHCAST_DEBUG_WEB_SEARCH=true
+# 证据摘要
+TRUTHCAST_EVIDENCE_SUMMARY_ENABLED=false
+TRUTHCAST_EVIDENCE_SUMMARY_MAX_ITEMS=3
+TRUTHCAST_EVIDENCE_SUMMARY_INPUT_LIMIT=10
+TRUTHCAST_EVIDENCE_SUMMARY_LLM_MODEL=
 TRUTHCAST_DEBUG_EVIDENCE_SUMMARY=true
+
+# 证据对齐
+TRUTHCAST_ALIGNMENT_LLM_ENABLED=false
+TRUTHCAST_ALIGNMENT_LLM_MODEL=
 TRUTHCAST_DEBUG_ALIGNMENT=true
-TRUTHCAST_DEBUG_REPORT=true
-TRUTHCAST_DEBUG_SIMULATION=true
 ```
+
+说明：
+
+- `TRUTHCAST_WEB_RETRIEVAL_ENABLED` 控制是否启用联网检索。
+- `TRUTHCAST_WEB_RETRIEVAL_TOPK` 是每条主张的最大检索数量。
+- `TRUTHCAST_WEB_ALLOWED_DOMAINS` 可用于生产环境限制来源域名。
+- 证据摘要层默认可关闭，适合先做原始证据链调试，再逐步打开聚合层。
+
+### 5. 报告生成、舆情预演与应对内容生成
+
+这组配置负责分析后半段的“综合研判”和“响应输出”。
+
+```ini
+# 综合报告
+TRUTHCAST_REPORT_LLM_ENABLED=false
+TRUTHCAST_REPORT_LLM_MODEL=
+TRUTHCAST_REPORT_TIMEOUT_SEC=30
+TRUTHCAST_REPORT_TZ=Asia/Hong_Kong
+TRUTHCAST_CLAIM_RANK_ALPHA=0.25
+TRUTHCAST_REPORT_TOPK=0
+TRUTHCAST_REPORT_NON_TOPK_FACTOR=0.5
+TRUTHCAST_REPORT_SCORE_BREAKDOWN_ENABLED=
+TRUTHCAST_DEBUG_REPORT=true
+
+# 舆情预演
+TRUTHCAST_SIMULATION_LLM_ENABLED=false
+TRUTHCAST_SIMULATION_LLM_MODEL=gpt-4o-mini
+TRUTHCAST_SIMULATION_MAX_NARRATIVES=4
+TRUTHCAST_SIMULATION_TIMEOUT_SEC=45
+TRUTHCAST_SIMULATION_MAX_RETRIES=2
+TRUTHCAST_SIMULATION_RETRY_DELAY=2
+TRUTHCAST_DEBUG_SIMULATION=true
+
+# 公关响应生成
+TRUTHCAST_CONTENT_LLM_ENABLED=false
+TRUTHCAST_CONTENT_LLM_MODEL=
+TRUTHCAST_CONTENT_LLM_BASE_URL=
+TRUTHCAST_CONTENT_LLM_API_KEY=
+TRUTHCAST_CONTENT_TIMEOUT_SEC=45
+TRUTHCAST_DEBUG_CONTENT=true
+
+# 澄清稿 / FAQ / 平台话术
+TRUTHCAST_CLARIFICATION_SHORT_MAX=150
+TRUTHCAST_CLARIFICATION_MEDIUM_MAX=400
+TRUTHCAST_CLARIFICATION_LONG_MAX=800
+TRUTHCAST_FAQ_DEFAULT_COUNT=5
+TRUTHCAST_FAQ_MAX_COUNT=10
+TRUTHCAST_PLATFORM_WEIBO_MAX=280
+TRUTHCAST_PLATFORM_WECHAT_MAX=1000
+```
+
+说明：
+
+- 报告生成支持独立 LLM 开关，也支持纯规则/加权路径。
+- `TRUTHCAST_REPORT_TZ` 用于时间语境判断，避免“昨天/明天”这类表达出现时区错位。
+- 应对内容生成可使用独立模型配置，也可回退到全局 LLM。
+
+### 6. 并发、缓存与 URL 抽取配置
+
+这部分更偏工程运行参数，建议在联调或部署阶段再调。
+
+```ini
+# 并发控制
+TRUTHCAST_CLAIM_PARALLEL_WORKERS=3
+TRUTHCAST_ALIGN_PARALLEL_WORKERS=4
+TRUTHCAST_LLM_CONCURRENCY=5
+TRUTHCAST_MAX_QUEUE_WAIT_SEC=30
+
+# 内存缓存
+TRUTHCAST_CACHE_DETECT_TTL=300
+TRUTHCAST_CACHE_CLAIMS_TTL=300
+TRUTHCAST_CACHE_MAX_SIZE=100
+
+# URL 抽取
+TRUTHCAST_URL_EXTRACT_ENABLED=true
+TRUTHCAST_URL_EXTRACT_PRIMARY=readability
+TRUTHCAST_URL_EXTRACT_SECONDARY=trafilatura
+TRUTHCAST_URL_EXTRACT_RENDER_FALLBACK=true
+TRUTHCAST_URL_EXTRACT_MIN_CONTENT_LEN=150
+TRUTHCAST_URL_EXTRACT_MIN_PARAGRAPHS=2
+TRUTHCAST_URL_EXTRACT_DEBUG=true
+TRUTHCAST_URL_RENDER_TIMEOUT_SEC=20
+TRUTHCAST_URL_RENDER_WAIT_UNTIL=networkidle
+TRUTHCAST_URL_EXTRACT_LLM_ENABLED=false
+TRUTHCAST_URL_EXTRACT_LLM_MODE=postprocess
+TRUTHCAST_URL_EXTRACT_LLM_MODEL=
+TRUTHCAST_URL_EXTRACT_LLM_TIMEOUT_SEC=20
+TRUTHCAST_URL_COMMENT_ENABLED=true
+TRUTHCAST_URL_COMMENT_MAX_ITEMS=100
+```
+
+### 7. 其他运行配置
+
+以下配置不一定是首次启动必填，但它们已经被当前代码实际使用：
+
+```ini
+# 对话工作台 / CLI
+TRUTHCAST_CHAT_DB_PATH=data/chat/chat.db
+TRUTHCAST_API_BASE=http://127.0.0.1:8000
+TRUTHCAST_CLI_TIMEOUT=30
+
+# 实时监测台
+TRUTHCAST_MONITOR_ENABLED=false
+TRUTHCAST_MONITOR_DB_PATH=
+TRUTHCAST_MONITOR_SCAN_INTERVAL_MINUTES=10
+TRUTHCAST_MONITOR_MANUAL_SCAN_AUTO_ANALYZE=false
+
+# 多模态 / OCR / 视觉分析
+TRUTHCAST_IMAGE_STORAGE_PATH=data/uploads
+TRUTHCAST_OCR_PROVIDER=vision_llm
+TRUTHCAST_VISION_PROVIDER=vision_llm
+```
+
+### 8. 配置建议
+
+- **本地演示最小配置**：优先填写 `TRUTHCAST_LLM_API_KEY`、`TRUTHCAST_LLM_BASE_URL`、`TRUTHCAST_LLM_MODEL`、`TRUTHCAST_WEB_SEARCH_PROVIDER` 以及对应搜索 API Key。
+- **先调通，再加开关**：建议先用最小配置跑通链路，再逐步打开风险快照、证据摘要、报告生成等 LLM 模块。
+- **以 `.env.example` 为准**：README 只保留高频配置说明，完整字段请直接查看根目录 [`.env.example`](/home/eryndor/code/TruthCast/.env.example)。
 
 ## 🔌 API 端点概览
 
 > 若已设置 `TRUTHCAST_API_KEY`，除 `/health`、`/docs`、`/redoc`、`/openapi.json` 外，其余接口均需携带 API Key。
 
-| 端点                          | 方法 | 描述                                          |
-| ----------------------------- | ---- | --------------------------------------------- |
-| `/health`                   | GET  | 服务健康检查                                  |
-| `/detect`                   | POST | 风险初判（快速评估文本风险）                  |
-| `/detect/claims`            | POST | 主张抽取（提取核心事实陈述）                  |
-| `/detect/evidence`          | POST | 证据检索（联网搜索相关证据）                  |
-| `/detect/report`            | POST | 综合报告（生成最终核查结论并落库）            |
-| `/simulate`                 | POST | 舆情预演（生成四阶段演化预测）                |
-| `/simulate/stream`          | POST | 舆情预演（SSE 流式返回，推荐前端使用）        |
-| `/history`                  | GET  | 获取历史分析记录列表                          |
-| `/history/{id}`             | GET  | 获取单条历史记录详情（支持回放）              |
-| `/history/{id}/feedback`    | POST | 提交人工反馈（准确/不准确）                   |
-| `/history/{id}/simulation`  | POST | 写回/更新舆情预演结果（用于历史回放）         |
-| `/history/{id}/content`     | POST | 写回/更新公关响应草稿（用于历史回放）         |
-| `/content/generate`         | POST | 一键生成公关响应（澄清稿 + FAQ + 多平台话术） |
-| `/content/clarification`    | POST | 单独生成澄清稿                                |
-| `/content/faq`              | POST | 单独生成 FAQ                                  |
-| `/content/platform-scripts` | POST | 单独生成多平台话术                            |
+### 基础与事实核查
+
+| 端点 | 方法 | 描述 |
+| ---- | ---- | ---- |
+| `/health` | GET | 服务健康检查 |
+| `/detect` | POST | 风险初判（快速评估文本风险） |
+| `/detect/claims` | POST | 主张抽取（提取核心事实陈述） |
+| `/detect/evidence` | POST | 证据检索（联网搜索相关证据） |
+| `/detect/evidence/align` | POST | 证据聚合与对齐 |
+| `/detect/report` | POST | 综合报告（生成最终核查结论并落库） |
+| `/detect/url` | POST | 抓取新闻链接并执行初始核查 |
+| `/detect/url/crawl` | POST | 仅抓取链接正文与元信息 |
+| `/detect/url/risk` | POST | 对已抓取正文执行风险快照 |
+
+### 舆情预演与应对内容
+
+| 端点 | 方法 | 描述 |
+| ---- | ---- | ---- |
+| `/simulate` | POST | 舆情预演（生成四阶段演化预测） |
+| `/simulate/stream` | POST | 舆情预演 SSE 流式返回 |
+| `/content/generate` | POST | 一键生成公关响应（澄清稿 + FAQ + 多平台话术） |
+| `/content/clarification` | POST | 单独生成澄清稿 |
+| `/content/faq` | POST | 单独生成 FAQ |
+| `/content/platform-scripts` | POST | 单独生成多平台话术 |
+| `/export/pdf` | POST | 导出 PDF 报告 |
+| `/export/word` | POST | 导出 Word 报告 |
+
+### 历史记录与阶段状态
+
+| 端点 | 方法 | 描述 |
+| ---- | ---- | ---- |
+| `/history` | GET | 获取历史分析记录列表 |
+| `/history/{record_id}` | GET | 获取单条历史记录详情（支持回放） |
+| `/history/{record_id}/feedback` | POST | 提交人工反馈（准确/不准确） |
+| `/history/{record_id}/simulation` | POST | 写回/更新舆情预演结果 |
+| `/history/{record_id}/content` | POST | 写回/更新公关响应草稿 |
+| `/pipeline/save-phase` | POST | 保存某阶段快照与状态 |
+| `/pipeline/load-latest` | GET | 读取最近一次任务状态或指定任务状态 |
+
+### 对话工作台
+
+| 端点 | 方法 | 描述 |
+| ---- | ---- | ---- |
+| `/chat` | POST | 非流式对话编排入口 |
+| `/chat/stream` | POST | SSE 流式对话入口（V1，兼容路径） |
+| `/chat/sessions` | POST | 创建会话 |
+| `/chat/sessions` | GET | 获取会话列表 |
+| `/chat/sessions/{session_id}` | GET | 获取单个会话详情 |
+| `/chat/sessions/{session_id}/messages/stream` | POST | 会话化 SSE 流式消息入口（V2，推荐） |
+
+### 多模态
+
+| 端点 | 方法 | 描述 |
+| ---- | ---- | ---- |
+| `/multimodal/upload` | POST | 上传图片素材 |
+| `/multimodal/files/{file_id}` | GET | 获取已上传图片文件 |
+| `/multimodal/files/{file_id}` | DELETE | 删除已上传图片文件 |
+| `/multimodal/detect` | POST | 文本 + 图片联合分析 |
+| `/multimodal/analyze-images` | POST | 仅执行图片分支分析 |
+
+### 实时监测台
+
+| 端点 | 方法 | 描述 |
+| ---- | ---- | ---- |
+| `/monitor/subscriptions` | GET | 获取订阅列表 |
+| `/monitor/subscriptions` | POST | 创建订阅 |
+| `/monitor/subscriptions/{sub_id}` | GET | 获取订阅详情 |
+| `/monitor/subscriptions/{sub_id}` | PATCH | 更新订阅 |
+| `/monitor/subscriptions/{sub_id}` | DELETE | 删除订阅 |
+| `/monitor/hot-items` | GET | 获取热榜/热点条目 |
+| `/monitor/scan` | POST | 触发手动扫描 |
+| `/monitor/alerts` | GET | 获取预警列表 |
+| `/monitor/alerts/{alert_id}` | GET | 获取单条预警 |
+| `/monitor/alerts/{alert_id}/ack` | POST | 确认预警 |
+| `/monitor/hot-items/{item_id}/assess` | POST | 对单条热点执行风险评估 |
+| `/monitor/status` | GET | 获取监测调度运行状态 |
+| `/monitor/analysis-results` | GET | 获取监测分析结果列表 |
+| `/monitor/analysis-results/{result_id}` | GET | 获取单条监测分析结果 |
+| `/monitor/window-items/{item_id}/analyze` | POST | 对窗口条目执行完整分析 |
+| `/monitor/analysis-results/{result_id}/generate-content` | POST | 基于监测结果生成公关响应 |
+| `/monitor/windows/latest` | GET | 获取最新监测窗口详情 |
+| `/monitor/windows/history` | GET | 获取历史监测窗口列表 |
 
 ## 🔄 工作流程 (Workflow)
 
-1. **输入阶段**: 用户在前端输入待核查的文本（如新闻报道、社交媒体传言）。
-2. **风险初判**: 系统快速评估文本的初始风险分数（0-100）和风险等级。
-3. **主张抽取**: Agent 根据文本复杂度（实体、时间、逻辑转折）决定抽取策略，将长文本拆解为 1-N 条独立主张。
-4. **证据检索**: 根据初始风险分数决定检索深度（高风险检索更多），调用外部搜索引擎获取候选证据。
-5. **证据聚合**: LLM 对同一主张下的多条相似证据进行去重和摘要归纳。
-6. **证据对齐**: 将每条主张与聚合后的证据进行比对，判定立场（支持/反对/证据不足）并给出置信度。
-7. **综合报告**: 汇总所有主张的对齐结果，生成最终的核查结论、场景分类（如医疗、治理、科技）和风险提示。
-8. **舆情预演**: 基于核查报告，预测该事件在特定平台（如微博、微信）上的情绪走向、叙事分支、可能引爆点，并给出针对性的应对建议。
+TruthCast 当前已经不只是单一路径的“文本检测器”，而是支持多种入口汇入同一套研判链路。
+
+### 1. 标准文本核查主链路
+
+这是系统最核心、最完整的工作流，也是前端首页和 CLI 默认走的路径。
+
+```text
+输入文本
+  ↓
+风险初判
+  ↓
+主张抽取
+  ↓
+联网检索
+  ↓
+证据聚合
+  ↓
+证据对齐
+  ↓
+综合报告
+  ↓
+舆情预演
+  ↓
+公关响应生成
+```
+
+对应说明：
+
+1. **输入阶段**：用户输入待核查文本，例如新闻报道、社交媒体传言、公告摘录等。
+2. **风险初判**：系统先给出一个初始风险分数、风险标签与原因摘要。
+3. **主张抽取**：根据文本复杂度自动决定抽取规模，将长文本拆成 1-N 条可核查主张。
+4. **联网检索**：根据风险分数调整检索深度，对每条主张调用搜索引擎获取候选证据。
+5. **证据聚合**：对多条检索结果进行压缩、去重与摘要，降低后续对齐成本。
+6. **证据对齐**：判断证据与主张之间的关系是支持、反对还是证据不足，并产出理由与置信度。
+7. **综合报告**：汇总所有主张的对齐结果，生成风险结论、场景识别、证据覆盖域与综合摘要。
+8. **舆情预演**：基于报告继续预测情绪演化、叙事分支、引爆点与应对建议。
+9. **公关响应生成**：基于报告与预演结果生成澄清稿、FAQ 与多平台话术。
+
+### 2. 链接核查分支
+
+当输入是一条新闻链接而不是纯文本时，系统会先做正文抽取，再接入主链路。
+
+```text
+输入 URL
+  ↓
+正文抓取 / 发布时间提取 / 评论抓取
+  ↓
+风险初判
+  ↓
+后续进入标准文本核查主链路
+```
+
+这一分支适合新闻网页、媒体文章、转载链接等场景。系统支持只抓取正文，也支持抓取后直接做风险快照与后续分析。
+
+### 3. 多模态分析分支
+
+当前系统支持“文本 + 图片”联合分析。图片会先经过 OCR 与图像语义分析，再与文本主链路结果融合。
+
+```text
+输入文本 + 图片
+  ↓
+文本主链路
+  ↓
+图片 OCR / 图像语义分析
+  ↓
+多模态融合报告
+  ↓
+回写到综合报告上下文
+```
+
+这一分支适合截图谣言、图文混合新闻、海报式传播内容等场景。若图片分支识别出语义冲突，融合层会提升风险并输出冲突点。
+
+### 4. 实时监测台工作流
+
+监测台不是手工单次分析，而是“采集 - 筛选 - 分析 - 回写”的持续化流程。
+
+```text
+平台订阅 / 手动扫描
+  ↓
+热榜抓取与窗口落库
+  ↓
+风险阈值筛选
+  ↓
+自动执行抓取、主张、证据、报告、预演
+  ↓
+写入监测结果与历史记录
+  ↓
+必要时生成公关响应
+```
+
+对应说明：
+
+1. **采集阶段**：按订阅平台或手动扫描任务拉取热点条目。
+2. **窗口化存储**：先写入监测窗口，再异步回填检测状态与分析结果。
+3. **阈值筛选**：仅对风险达到阈值的条目继续执行深度分析。
+4. **自动分析**：进入与主链路一致的抓取、风险、主张、证据、报告、预演流程。
+5. **结果回写**：分析结果同步写入监测台与历史记录，并通过 `history_record_id` 关联。
+6. **后续处置**：当预演完成后，可继续触发公关响应生成。
+
+### 5. 对话工作台闭环
+
+对话工作台并不是独立于主系统的另一套逻辑，而是对主链路能力的会话化封装。
+
+```text
+用户自然语言提问
+  ↓
+意图识别 / 技能路由
+  ↓
+调用主链路某一阶段或完整链路
+  ↓
+返回结构化消息、引用卡片、操作建议
+  ↓
+继续追问 / 重写 / 补充证据
+```
+
+这使系统既能以控制台方式演示，也能以 Copilot 式工作台方式演示，适合答辩时展示“同一后端能力的多入口复用”。
 
 ## 🖥️ CLI 命令行工具
 
